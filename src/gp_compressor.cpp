@@ -292,27 +292,3 @@ void gp_compressor::compress_colors()
 {
 
 }
-
-void gp_compressor::random_positions(std::vector<int>& rtn, int n, int m)
-{
-    if (n < m) {
-        rtn.resize(n);
-        for (int j = 0; j < n; ++j) {
-            rtn[j] = j;
-        }
-        return;
-    }
-    if (m == 0) {
-        return;
-    }
-    rtn.resize(m);
-    std::srand(std::time(0)); // use current time as seed for random generator
-    int ind;
-    for (int j = 0; j < m; ++j) {
-        do {
-            ind = std::rand() % n;
-        }
-        while (std::find(rtn.begin(), rtn.end(), ind) != rtn.end());
-        rtn[j] = ind;
-    }
-}

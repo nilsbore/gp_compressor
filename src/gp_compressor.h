@@ -37,7 +37,6 @@ private:
     void project_cloud();
     void compress_depths();
     void compress_colors();
-    void random_positions(std::vector<int>& rtn, int n, int m);
 public:
     gp_compressor(pointcloud::ConstPtr cloud, float res = 0.1f, int sz = 10);
     void save_compressed(const std::string& name);

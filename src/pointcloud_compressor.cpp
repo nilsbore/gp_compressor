@@ -4,7 +4,6 @@
 
 #include <pcl/octree/octree_impl.h>
 #include <stdint.h>
-#include <boost/thread/thread.hpp>
 
 using namespace Eigen;
 
@@ -192,6 +191,7 @@ float pointcloud_compressor::compute_rms_error()
         for (int k = 0; k < number_words[i]; ++k) {
             s_err += X(k, i)*D.col(I(k, i));
         }
+        // s_err = S.col(i); // for testing the influence of the averaging
         for (const VectorXf& p : patch_points[i]) {
             x = int(float(sz)*p(1)/res);
             y = int(float(sz)*p(2)/res);
