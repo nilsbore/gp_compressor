@@ -32,7 +32,7 @@ public:
     void predict_measurements(Eigen::VectorXd& f_star, const Eigen::MatrixXd& X_star,
                               Eigen::VectorXd& sigconf, bool conf = false);
     double log_prob(const Eigen::VectorXd& X_star, const Eigen::VectorXd& f_star);
-    sparse_gp(int capacity = 20, double s0 = 1e-5f, double sigmaf = 1e-4, double l = 10*10);
+    sparse_gp(int capacity = 20, double s0 = 1e-2f, double sigmaf = 1e-2f, double l = 10*10);
 };
 
 #endif // SPARSE_GP_H

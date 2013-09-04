@@ -35,13 +35,10 @@ void sparse_gp::add_measurements(const MatrixXd& X,const VectorXd& y)
 {
     std::vector<int> ind;
     shuffle(ind, y.rows());
-    for (int i = 0; i < X.rows(); i++) {
-        add(X.row(ind[i]).transpose(), y(ind[i])); // row transpose
-    }
 
     /*std::cout << "[ ";
     for (int i = 0; i < X.rows(); ++i) {
-        std::cout << X.row(i);
+        std::cout << X.row(ind[i]);
         if (i < X.rows() - 1) {
             std::cout << " ;" << std::endl;
         }
@@ -50,7 +47,15 @@ void sparse_gp::add_measurements(const MatrixXd& X,const VectorXd& y)
         }
     }
 
-    std::cout << "[ " << y.transpose() << " ]" << std::endl;*/
+    std::cout << "[ ";
+    for (int i = 0; i < y.rows(); ++i) {
+        std::cout << y(ind[i]) << " ";
+    }
+    std::cout << "]" << std::endl;*/
+
+    for (int i = 0; i < X.rows(); i++) {
+        add(X.row(ind[i]).transpose(), y(ind[i])); // row transpose
+    }
 
 }
 
@@ -88,11 +93,11 @@ void sparse_gp::add(const VectorXd& X, double y)
         double m = alpha.transpose()*k;
         double s2 = kstar + k.transpose()*C*k;
 
-        if (s2 < 1e-12f){//For numerical stability..from Csato's Matlab code?
+        if (s2 < 1e-12f) {//For numerical stability..from Csato's Matlab code?
             if (DEBUG) {
                 printf("s2 %lf ",s2);
             }
-            s2 = 1e-12f;
+            //s2 = 1e-12f; // this is where the nan comes from
         }
 
         //Update scalars
@@ -124,7 +129,7 @@ void sparse_gp::add(const VectorXd& X, double y)
             double eta = 1/(1 + gamma*r);//Ibid
             VectorXd s_hat = C*k + e_hat;//Appendix G section e
             alpha += s_hat*(q * eta);//Appendix G section f
-            C += r*eta*s_hat*s_hat.transpose();//Ibid
+            C += r*eta*(s_hat*s_hat.transpose());//Ibid,  TRY TO REMOVE PARENTHESIS FOR SPEED
         }
         else { //Full update
             if (DEBUG) {
@@ -147,7 +152,7 @@ void sparse_gp::add(const VectorXd& X, double y)
             C.row(C.rows() - 1).setZero();
             C.col(C.cols() - 1).setZero();
             //Update C
-            C += r*s*s.transpose();//Ibid
+            C += r*(s*s.transpose());//Ibid,  TRY TO REMOVE PARENTHESIS FOR SPEED
 
             //Save the data, N++
             BV.conservativeResize(BV.rows(), current_size + 1);
@@ -160,10 +165,10 @@ void sparse_gp::add(const VectorXd& X, double y)
             Q.col(Q.cols() - 1).setZero();
 
             //Add one more to ehat
-            e_hat.resize(e_hat.rows() + 1);
+            e_hat.conservativeResize(e_hat.rows() + 1);
             e_hat(e_hat.rows() - 1) = -1.0f;
             //Update gram matrix
-            Q += 1.0f/gamma*e_hat*e_hat.transpose();//Equation 3.5
+            Q += 1.0f/gamma*(e_hat*e_hat.transpose());//Equation 3.5, TRY TO REMOVE PARENTHESIS FOR SPEED
 
         }
 
