@@ -6,7 +6,7 @@
 
 class sparse_gp
 {
-private:
+protected:
     // parameters of covariance function:
     double sigmaf_sq;
     double l_sq;

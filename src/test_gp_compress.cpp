@@ -11,8 +11,8 @@ using namespace std;
 int main(int argc, char** argv)
 {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
-    std::string filename = "/home/nbore/Downloads/home_data_ascii/scene11_ascii.pcd";
-    //std::string filename = "../data/office1.pcd";
+    //std::string filename = "/home/nbore/Downloads/home_data_ascii/scene11_ascii.pcd";
+    std::string filename = "../data/office1.pcd";
     if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (filename, *cloud) == -1)
     {
         std::cout << "Couldn't read file " << filename << std::endl;

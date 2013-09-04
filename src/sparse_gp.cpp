@@ -12,7 +12,7 @@ sparse_gp::sparse_gp(int capacity, double s0, double sigmaf, double l) :
     capacity(capacity), s20(s0), sigmaf_sq(sigmaf), l_sq(l),
     eps_tol(1e-6f), current_size(0), total_count(0)
 {
-    std::cout << "new gaussian process object!" << std::endl;
+
 }
 
 void sparse_gp::shuffle(std::vector<int>& ind, int n)
@@ -68,7 +68,6 @@ void sparse_gp::add(const VectorXd& X, double y)
         printf("\t\tsparse_gp adding %dth point to sparse_gp (current_size = %d):",total_count,current_size);
     }
     double kstar = kernel_function(X, X);
-    std::cout << "kstar: " << kstar << std::endl;
 
     if (current_size == 0){//First point is easy
         alpha.resize(1);
@@ -129,7 +128,7 @@ void sparse_gp::add(const VectorXd& X, double y)
             double eta = 1/(1 + gamma*r);//Ibid
             VectorXd s_hat = C*k + e_hat;//Appendix G section e
             alpha += s_hat*(q * eta);//Appendix G section f
-            C += r*eta*(s_hat*s_hat.transpose());//Ibid,  TRY TO REMOVE PARENTHESIS FOR SPEED
+            C += r*eta*s_hat*s_hat.transpose();//Ibid
         }
         else { //Full update
             if (DEBUG) {
@@ -152,7 +151,7 @@ void sparse_gp::add(const VectorXd& X, double y)
             C.row(C.rows() - 1).setZero();
             C.col(C.cols() - 1).setZero();
             //Update C
-            C += r*(s*s.transpose());//Ibid,  TRY TO REMOVE PARENTHESIS FOR SPEED
+            C += r*s*s.transpose();//Ibid
 
             //Save the data, N++
             BV.conservativeResize(BV.rows(), current_size + 1);
@@ -168,11 +167,9 @@ void sparse_gp::add(const VectorXd& X, double y)
             e_hat.conservativeResize(e_hat.rows() + 1);
             e_hat(e_hat.rows() - 1) = -1.0f;
             //Update gram matrix
-            Q += 1.0f/gamma*(e_hat*e_hat.transpose());//Equation 3.5, TRY TO REMOVE PARENTHESIS FOR SPEED
+            Q += 1.0f/gamma*e_hat*e_hat.transpose();//Equation 3.5
 
         }
-
-        MatrixXd Q_inv = Q.inverse(); // DEBUG!!!
 
         //Delete BVs if necessary...maybe only 2 per iteration?
         while (current_size > capacity && capacity > 0) { //We're too big!
