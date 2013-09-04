@@ -6,20 +6,20 @@
 class gaussian_process
 {
 private:
-    float sigmaf_sq;
-    float l_sq;
-    float sigman_sq;
-    Eigen::VectorXf alpha;
-    Eigen::MatrixXf K;
-    Eigen::MatrixXf X;
-    Eigen::LLT<Eigen::MatrixXf> chol;
-    void covariance_matrix(Eigen::MatrixXf& C, const Eigen::MatrixXf& Xi, const Eigen::MatrixXf& Xj, bool training = false);
-    float squared_exp_distance(const Eigen::Vector2f& xi, const Eigen::Vector2f& xj);
+    double sigmaf_sq;
+    double l_sq;
+    double sigman_sq;
+    Eigen::VectorXd alpha;
+    Eigen::MatrixXd K;
+    Eigen::MatrixXd X;
+    Eigen::LLT<Eigen::MatrixXd> chol;
+    void covariance_matrix(Eigen::MatrixXd& C, const Eigen::MatrixXd& Xi, const Eigen::MatrixXd& Xj, bool training = false);
+    double squared_exp_distance(const Eigen::Vector2d& xi, const Eigen::Vector2d& xj);
 public:
-    void evaluate_points(Eigen::VectorXf& f_star, Eigen::VectorXf& V_star, const Eigen::MatrixXf& X_star);
-    void add_measurements(const Eigen::MatrixXf& nX, const Eigen::VectorXf& y);
-    gaussian_process(float sigmaf = 0.05, float l = 3, float sigman = 0.04);
-    //gaussian_process(float sigmaf, float l, float sigman);
+    void predict_measurements(Eigen::VectorXd& f_star, const Eigen::MatrixXd& X_star, Eigen::VectorXd& V_star);
+    void add_measurements(const Eigen::MatrixXd& nX, const Eigen::VectorXd& y);
+    gaussian_process(double sigmaf = 0.05, double l = 3, double sigman = 0.04);
+    //gaussian_process(double sigmaf, double l, double sigman);
 };
 
 #endif // GAUSSIAN_PROCESS_H

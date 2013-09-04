@@ -1,4 +1,4 @@
-set(CMAKE_CXX_FLAGS "-O4 -g -fPIC -std=c++0x")
+set(CMAKE_CXX_FLAGS "-g -fPIC -std=c++0x")
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
@@ -24,7 +24,7 @@ add_executable(test_decompress src/test_decompress.cpp)
 
 target_link_libraries(dictionary_representation ${PCL_LIBRARIES})
 target_link_libraries(ksvd_decomposition orthogonal_matching_pursuit)
-target_link_libraries(gp_compressor gaussian_process dictionary_representation ${PCL_LIBRARIES})
+target_link_libraries(gp_compressor sparse_gp gaussian_process dictionary_representation ${PCL_LIBRARIES})
 target_link_libraries(pointcloud_compressor ksvd_decomposition dictionary_representation ${PCL_LIBRARIES})
 target_link_libraries(pointcloud_decompressor dictionary_representation ${PCL_LIBRARIES})
 target_link_libraries(test_compress pointcloud_compressor ${PCL_LIBRARIES})

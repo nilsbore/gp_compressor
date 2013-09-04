@@ -1,6 +1,7 @@
 #include "gp_compressor.h"
 
 #include "gaussian_process.h"
+#include "sparse_gp.h"
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/octree/octree_impl.h>
@@ -181,28 +182,32 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
     int points;
     int ind;
     int data_points = 0;
-    MatrixXf X;
-    VectorXf y;
-    VectorXf f; // DEBUGGING, computing rms error
-    MatrixXf X_star;
-    VectorXf f_star;
-    VectorXf V_star;
+    MatrixXd X;
+    VectorXd y;
+    VectorXd f; // DEBUGGING, computing rms error
+    MatrixXd X_star;
+    VectorXd f_star;
+    VectorXd V_star;
     float sum_squared_error = 0;
     for (int i = 0; i < n; ++i) {
+        if (S[i].size() == 0) {
+            continue;
+        }
         X.resize(S[i].size(), 2);
         y.resize(S[i].size());
         int m = 0;
         for (const Vector3f& p : S[i]) {
-            if (rand() % 2 == 0 || rand() % 2 == 0 || rand() % 2 == 0 || rand() % 2 == 0) {
+            /*if (rand() % 2 == 0 || rand() % 2 == 0 || rand() % 2 == 0 || rand() % 2 == 0) {
                 continue;
-            }
-            X.row(m) = p.tail<2>().transpose();
+            }*/
+            X.row(m) = p.tail<2>().transpose().cast<double>();
             y(m) = p(0);
             ++m;
         }
         X.conservativeResize(m, 2);
         y.conservativeResize(m);
-        gaussian_process gp;
+        //gaussian_process gp;
+        sparse_gp gp;
         gp.add_measurements(X, y);
 
         // DEBUGGING, computing rms error
@@ -210,12 +215,12 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
         f.resize(S[i].size());
         m = 0;
         for (const Vector3f& p : S[i]) {
-            X_star.row(m) = p.tail<2>().transpose();
+            X_star.row(m) = p.tail<2>().transpose().cast<double>();
             f(m) = p(0);
             ++m;
         }
         data_points += S[i].size();
-        gp.evaluate_points(f_star, V_star, X_star);
+        gp.predict_measurements(f_star, X_star, V_star);
         sum_squared_error += (f - f_star).squaredNorm();
         // DEBUGGING, computing rms error
 
@@ -227,13 +232,13 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
                 if (!W(ind, i)) {
                     continue;
                 }
-                X_star(points, 0) = float(x);//(pt(1) + 0.5f)*res/float(sz) - res/2.0f; // both at the same time
-                X_star(points, 1) = float(y);//(pt(2) + 0.5f)*res/float(sz) - res/2.0f;
+                X_star(points, 0) = double(x);//(pt(1) + 0.5f)*res/float(sz) - res/2.0f; // both at the same time
+                X_star(points, 1) = double(y);//(pt(2) + 0.5f)*res/float(sz) - res/2.0f;
                 ++points;
             }
         }
         X_star.conservativeResize(points, 2);
-        gp.evaluate_points(f_star, V_star, X_star);
+        gp.predict_measurements(f_star, X_star, V_star);
         for (int m = 0; m < points; ++m) {
             pt(0) = f_star(m);
             pt(1) = (X_star(m, 0) + 0.5f)*res/float(sz) - res/2.0f; // both at the same time

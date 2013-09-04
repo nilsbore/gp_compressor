@@ -8,30 +8,31 @@ class sparse_gp
 {
 private:
     // parameters of covariance function:
-    float sigmaf_sq;
-    float l_sq;
+    double sigmaf_sq;
+    double l_sq;
     //private:
     int total_count; // How many points have I seen?
     int current_size; // how many inducing points do I have
     int capacity; // maximum number of inducing points
-    float s20;
-    float eps_tol; // error tolerance
-    Eigen::VectorXf alpha; // Alpha and C are the parameters of the GP
+    double s20;
+    double eps_tol; // error tolerance
+    Eigen::VectorXd alpha; // Alpha and C are the parameters of the GP
     // Alpha is NxDout
-    Eigen::MatrixXf C;
-    Eigen::MatrixXf Q; // Inverse Gram Matrix.  C and Q are NxN
-    Eigen::MatrixXf BV; // The Basis Vectors, BV is 2xN
-    void add(const Eigen::VectorXf& X, float y);
+    Eigen::MatrixXd C;
+    Eigen::MatrixXd Q; // Inverse Gram Matrix (K_t).  C and Q are NxN
+    Eigen::MatrixXd BV; // The Basis Vectors, BV is 2xN
+    void add(const Eigen::VectorXd& X, double y);
     void delete_bv(int loc);
-    float predict(const Eigen::VectorXf& X_star, float& sigma, bool conf);
-    void construct_covariance(Eigen::VectorXf& K, const Eigen::Vector2f& X, const Eigen::MatrixXf& Xv);
-    float kernel_function(const Eigen::Vector2f& xi, const Eigen::Vector2f& xj);
+    double predict(const Eigen::VectorXd& X_star, double& sigma, bool conf);
+    void construct_covariance(Eigen::VectorXd& K, const Eigen::Vector2d& X, const Eigen::MatrixXd& Xv);
+    double kernel_function(const Eigen::Vector2d& xi, const Eigen::Vector2d& xj);
+    void shuffle(std::vector<int>& ind, int n);
 public:
-    void add_measurements(const Eigen::MatrixXf& X,const Eigen::VectorXf& y);
-    void predict_measurements(Eigen::VectorXf& f_star, const Eigen::MatrixXf& X_star,
-                              Eigen::VectorXf& sigconf, bool conf);
-    double log_prob(const Eigen::VectorXf& X_star, const Eigen::VectorXf& f_star);
-    sparse_gp(int capacity, float s20, float sigmaf, float l);
+    void add_measurements(const Eigen::MatrixXd& X,const Eigen::VectorXd& y);
+    void predict_measurements(Eigen::VectorXd& f_star, const Eigen::MatrixXd& X_star,
+                              Eigen::VectorXd& sigconf, bool conf = false);
+    double log_prob(const Eigen::VectorXd& X_star, const Eigen::VectorXd& f_star);
+    sparse_gp(int capacity = 20, double s0 = 1e-5f, double sigmaf = 1e-4, double l = 10*10);
 };
 
 #endif // SPARSE_GP_H
