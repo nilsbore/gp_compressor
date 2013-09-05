@@ -6,7 +6,7 @@
 
 class sparse_gp
 {
-protected:
+private:
     // parameters of covariance function:
     double sigmaf_sq;
     double l_sq;
@@ -27,12 +27,14 @@ protected:
     void construct_covariance(Eigen::VectorXd& K, const Eigen::Vector2d& X, const Eigen::MatrixXd& Xv);
     double kernel_function(const Eigen::Vector2d& xi, const Eigen::Vector2d& xj);
     void shuffle(std::vector<int>& ind, int n);
+    void kernel_dx(Eigen::MatrixXd k_dx, const Eigen::Vector2d& x);
 public:
     void add_measurements(const Eigen::MatrixXd& X,const Eigen::VectorXd& y);
     void predict_measurements(Eigen::VectorXd& f_star, const Eigen::MatrixXd& X_star,
                               Eigen::VectorXd& sigconf, bool conf = false);
     double log_prob(const Eigen::VectorXd& X_star, const Eigen::VectorXd& f_star);
-    sparse_gp(int capacity = 20, double s0 = 1e-2f, double sigmaf = 1e-2f, double l = 10*10);
+    void likelihood_dx(Eigen::Vector3d& dx, const Eigen::Vector2d& x, double y);
+    sparse_gp(int capacity = 20, double s0 = 1e-2f, double sigmaf = 1e-2f, double l = 0.08*0.08);
 };
 
 #endif // SPARSE_GP_H

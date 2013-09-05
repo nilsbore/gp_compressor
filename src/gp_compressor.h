@@ -6,13 +6,14 @@
 #include <string>
 #include <vector>
 #include <list>
+#include "sparse_gp.h"
 
 class gp_compressor
 {
 public:
     typedef pcl::PointXYZRGB point;
     typedef pcl::PointCloud<point> pointcloud;
-private:
+protected:
     pointcloud::ConstPtr cloud; // the input pointcloud with RGB color information
     float res;
     int sz;
@@ -29,6 +30,7 @@ private:
     //Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> RGB;
     // the masks showing where in the patches there are observations
     Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> W;
+    std::vector<sparse_gp> gps;
 
     void compute_rotation(Eigen::Matrix3f& R, const Eigen::MatrixXf& points);
     void project_points(Eigen::Vector3f& center, const Eigen::Matrix3f& R, Eigen::MatrixXf& points,
@@ -37,6 +39,7 @@ private:
     void project_cloud();
     void compress_depths();
     void compress_colors();
+    void train_processes();
 public:
     gp_compressor(pointcloud::ConstPtr cloud, float res = 0.1f, int sz = 10);
     void save_compressed(const std::string& name);

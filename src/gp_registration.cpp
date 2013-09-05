@@ -2,31 +2,44 @@
 
 using namespace Eigen;
 
-gp_registration::gp_registration()
+gp_registration::gp_registration(pointcloud::ConstPtr cloud, float res, int sz) : gp_compressor(cloud, res, sz)
 {
+    project_cloud();
+    std::cout << "Number of patches: " << S.size() << std::endl;
+    train_processes();
 }
 
-double gp_compressor::kernel_dx(double x, double xk)
+void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
 {
 
 }
 
-void gp_compressor::likelihood_dx(Vector2d& x, double y, Matrix3d& dx)
+void gp_registration::add(const Vector3f& x, const Vector3f& dx, const Vector3f& corresponding_point)
 {
-    VectorXf k;
-    construct_covariance(x, BV);
-    VectorXf k_dx(BV.cols());
-    for (int i = 0; i < BV.cols(); ++i) {
-        k_dx(i) = kernel_dx(x, BV.col(i));
+    if (weight==0.0f)
+        return;
+
+    ++no_of_samples_;
+    accumulated_weight_ += weight;
+    float alpha = weight/accumulated_weight_;
+
+    Eigen::Vector3f diff1 = point - mean1_, diff2 = corresponding_point - mean2_;
+    covariance_ = (1.0f-alpha)*(covariance_ + alpha * (diff2 * diff1.transpose()));
+
+    mean1_ += alpha*(diff1);
+    mean2_ += alpha*(diff2);
+}
+
+void gp_registration::get_transformation(Matrix3d& R, Vector3d& t)
+{
+    JacobiSVD<Matrix3d> svd(covariance_, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    const Matrix3d& u = svd.matrixU();
+    const Matrix3d& v = svd.matrixV();
+    Matrix3d s;
+    s.setIdentity();
+    if (u.determinant()*v.determinant() < 0.0f) {
+        s(2, 2) = -1.0f;
     }
-    double sigma_dx = 2*k.transpose()*C*k_dx;
-    double sigma = s20 + k.transpose()*C*k_dx;
-    double nomroot = y - alpha.transpose()*k;
-    double nom = nomroot*nomroot;
-    double expf = exp(-0.5f*nom/sigma);
-    dx(0) = sigma_dx*expf +
-            sigma*-0.5*(sigma_dx*nom - sigma*2.0f*alpha.transpose()*k_dx*nomroot)*expf;
-
-
-    dx(2) = -nomroot/sigma*expf;
+    R = u * s * v.transpose();
+    t = mean2_ - r*mean1_;
 }

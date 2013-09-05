@@ -1,7 +1,6 @@
 #include "gp_compressor.h"
 
 #include "gaussian_process.h"
-#include "sparse_gp.h"
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/octree/octree_impl.h>
@@ -22,8 +21,9 @@ void gp_compressor::save_compressed(const std::string& name)
     std::cout << "Size of original point cloud: " << cloud->width*cloud->height << std::endl;
     project_cloud();
     std::cout << "Number of patches: " << S.size() << std::endl;
-    compress_depths();
-    compress_colors();
+    //compress_depths();
+    //compress_colors();
+    train_processes();
 }
 
 void gp_compressor::compute_rotation(Matrix3f& R, const MatrixXf& points)
@@ -78,17 +78,17 @@ void gp_compressor::project_points(Vector3f& center, const Matrix3f& R, MatrixXf
         if (occupied_indices[index_search[m]]) {
             continue;
         }
-        pt = R.transpose()*(points.block<3, 1>(0, m) - center);
-        pt(1) += res/2.0f;
+        pt = R.transpose()*(points.block<3, 1>(0, m) - center); // transforming to the patch coordinate system
+        pt(1) += res/2.0f; // moving the points to go 0 < x < res
         pt(2) += res/2.0f;
         if (pt(1) > res || pt(1) < 0 || pt(2) > res || pt(2) < 0) {
             continue;
         }
         mn += pt(0);
         occupied_indices[index_search[m]] = 1;
-        pt(1) *= float(sz)/res; // maybe just divide by res to get between 0 and 1
-        pt(2) *= float(sz)/res;
-        ind = sz*int(pt(1)) + int(pt(2));
+        //pt(1) *= float(sz)/res; // maybe just divide by res to get between 0 and 1
+        //pt(2) *= float(sz)/res;
+        ind = sz*int(float(sz)/res*pt(1)) + int(float(sz)/res*pt(2));
         float current_count = count(ind);
         S[i].push_back(pt);
         c = colors.col(m);
@@ -113,6 +113,29 @@ void gp_compressor::project_points(Vector3f& center, const Matrix3f& R, MatrixXf
     RGB.col(2*S.cols() + i).array() -= mn;
     RGB_means[i](2) = mn;*/
     W.col(i) = count > 0;
+}
+
+void gp_compressor::train_processes()
+{
+    MatrixXd X;
+    VectorXd y;
+    gps.resize(S.size());
+    for (int i = 0; i < S.size(); ++i) {
+        if (S[i].size() == 0) {
+            continue;
+        }
+        X.resize(S[i].size(), 2);
+        y.resize(S[i].size());
+        int m = 0;
+        for (const Vector3f& p : S[i]) {
+            X.row(m) = p.tail<2>().transpose().cast<double>();
+            y(m) = p(0);
+            ++m;
+        }
+        X.conservativeResize(m, 2);
+        y.conservativeResize(m);
+        gps[i].add_measurements(X, y);
+    }
 }
 
 void gp_compressor::project_cloud()
@@ -182,8 +205,6 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
     int points;
     int ind;
     int data_points = 0;
-    MatrixXd X;
-    VectorXd y;
     VectorXd f; // DEBUGGING, computing rms error
     MatrixXd X_star;
     VectorXd f_star;
@@ -193,34 +214,18 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
         if (S[i].size() == 0) {
             continue;
         }
-        X.resize(S[i].size(), 2);
-        y.resize(S[i].size());
-        int m = 0;
-        for (const Vector3f& p : S[i]) {
-            /*if (rand() % 2 == 0 || rand() % 2 == 0 || rand() % 2 == 0 || rand() % 2 == 0) {
-                continue;
-            }*/
-            X.row(m) = p.tail<2>().transpose().cast<double>();
-            y(m) = p(0);
-            ++m;
-        }
-        X.conservativeResize(m, 2);
-        y.conservativeResize(m);
-        //gaussian_process gp;
-        sparse_gp gp;
-        gp.add_measurements(X, y);
 
         // DEBUGGING, computing rms error
         X_star.resize(S[i].size(), 2);
         f.resize(S[i].size());
-        m = 0;
+        int m = 0;
         for (const Vector3f& p : S[i]) {
             X_star.row(m) = p.tail<2>().transpose().cast<double>();
             f(m) = p(0);
             ++m;
         }
         data_points += S[i].size();
-        gp.predict_measurements(f_star, X_star, V_star);
+        gps[i].predict_measurements(f_star, X_star, V_star);
         sum_squared_error += (f - f_star).squaredNorm();
         // DEBUGGING, computing rms error
 
@@ -232,17 +237,17 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
                 if (!W(ind, i)) {
                     continue;
                 }
-                X_star(points, 0) = double(x);//(pt(1) + 0.5f)*res/float(sz) - res/2.0f; // both at the same time
-                X_star(points, 1) = double(y);//(pt(2) + 0.5f)*res/float(sz) - res/2.0f;
+                X_star(points, 0) = res/float(sz)*(double(x) + 0.5f);//(pt(1) + 0.5f)*res/float(sz) - res/2.0f; // both at the same time
+                X_star(points, 1) = res/float(sz)*(double(y) + 0.5f);//(pt(2) + 0.5f)*res/float(sz) - res/2.0f;
                 ++points;
             }
         }
         X_star.conservativeResize(points, 2);
-        gp.predict_measurements(f_star, X_star, V_star);
+        gps[i].predict_measurements(f_star, X_star, V_star);
         for (int m = 0; m < points; ++m) {
             pt(0) = f_star(m);
-            pt(1) = (X_star(m, 0) + 0.5f)*res/float(sz) - res/2.0f; // both at the same time
-            pt(2) = (X_star(m, 1) + 0.5f)*res/float(sz) - res/2.0f;
+            pt(1) = X_star(m, 0) - res/2.0f; // both at the same time
+            pt(2) = X_star(m, 1) - res/2.0f;
             pt = rotations[i].toRotationMatrix()*pt + means[i];
             //std::cout << pt.transpose() << std::endl;
             ncloud->at(counter).x = pt(0);

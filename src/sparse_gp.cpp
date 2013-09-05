@@ -357,6 +357,36 @@ double sparse_gp::log_prob(const VectorXd& X_star, const VectorXd& f_star)
     return lp;
 }
 
+// the differential kernel vector with respect to x
+void sparse_gp::kernel_dx(MatrixXd k_dx, const Vector2d& x)
+{
+    k_dx.resize(BV.cols(), 2);
+    RowVector2d offset;
+    for (int i = 0; i < BV.cols(); ++i) {
+        offset =  (x - BV.col(i)).transpose();
+        k_dx.row(i) = -sigmaf_sq/l_sq*offset*exp(-0.5f/l_sq*offset.squaredNorm());
+    }
+}
+
+// the differential likelihood with respect to x and y
+void sparse_gp::likelihood_dx(Vector3d& dx, const Vector2d& x, double y)
+{
+    VectorXd k;
+    construct_covariance(k, x, BV);
+    MatrixXd k_dx;
+    kernel_dx(k_dx, x);
+    Array2d sigma_dx = 2*k_dx.transpose()*C*k_dx;
+    double sigma = s20 + k.transpose()*C*k;
+    double sqrtsigma = sqrt(sigma);
+    double offset = y - k.transpose()*alpha;
+    double exppart = exp(-0.5f/sigma * offset*offset);
+    Array2d firstpart = -0.5f*sigma_dx / (sigma*sqrtsigma);
+    Array2d secondpart = 0.5f/sqrtsigma*(2.0f/sqrtsigma*(k_dx.transpose()*alpha).array()*offset +
+                                        sigma_dx / (sigma*sigma) * offset*offset);
+    dx.head<2>() = exppart*(firstpart + secondpart);
+    dx(2) = -1.0f/(sigma*sqrtsigma)*offset*exppart;
+}
+
 // kernel function, to be separated out later
 void sparse_gp::construct_covariance(VectorXd& K, const Vector2d& X, const MatrixXd& Xv)
 {
