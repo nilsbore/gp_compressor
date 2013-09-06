@@ -1,10 +1,12 @@
 #include "gp_compressor.h"
 
 #include "gaussian_process.h"
-#include "gp_leaf.h"
+//#include "gp_leaf.h"
+#include "gp_octree.h"
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/octree/octree_impl.h>
+//#include <pcl/octree/octree_key.h>
 #include <pcl/io/pcd_io.h>
 #include <stdint.h>
 #include <boost/thread/thread.hpp>
@@ -141,18 +143,18 @@ void gp_compressor::train_processes()
 
 void gp_compressor::project_cloud()
 {
-    pcl::octree::OctreePointCloudSearch<point, gp_leaf> octree(res);
+    gp_octree octree(res);
     octree.setInputCloud(cloud);
     octree.addPointsFromInputCloud();
 
     std::vector<point, Eigen::aligned_allocator<point> > centers;
-    octree.getOccupiedVoxelCenters(centers);
+    int n = octree.getLeafCount();
 
-    S.resize(centers.size());
-    W.resize(sz*sz, centers.size());
+    S.resize(n);
+    W.resize(sz*sz, n);
     //RGB.resize(sz*sz, 3*centers.size());
-    rotations.resize(centers.size());
-    means.resize(centers.size());
+    rotations.resize(n);
+    means.resize(n);
     //RGB_means.resize(centers.size());
 
     float radius = sqrt(3.0f)/2.0f*res; // radius of the sphere encompassing the voxels
@@ -163,28 +165,21 @@ void gp_compressor::project_cloud()
     Vector3f mid;
     int* occupied_indices = new int[cloud->width*cloud->height]();
 
+    point center;
+    int i = 0;
     typedef pcl::octree::OctreePointCloudSearch<point, gp_leaf>::OctreeT::LeafNodeIterator leaf_iterator;
     leaf_iterator iter(octree);
-
-    int kk = 0;
     while(*++iter) {
-        //gp_leaf leaf;
-        //pcl::octree::OctreeContainerDataTVector<int> leaf;
-        //iter.getData(leaf);
-        //std::cout << leaf.added_points.size() << std::endl;
+        pcl::octree::OctreeKey key = iter.getCurrentOctreeKey();
+        octree.generate_voxel_center(center, key);
+
         gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
         if (leaf == NULL) {
             std::cout << "doesn't work, exiting..." << std::endl;
             exit(0);
         }
-        std::cout << "Number: " << kk++ << std::endl;
-        std::cout << leaf->gp_index << std::endl;
-    }
+        leaf->gp_index = i;
 
-
-    point center;
-    for (int i = 0; i < centers.size(); ++i) {
-        center = centers[i];
         octree.radiusSearch(center, radius, index_search, distances);
         MatrixXf points(4, index_search.size());
         Matrix<short, Dynamic, Dynamic> colors(3, index_search.size());
@@ -202,6 +197,7 @@ void gp_compressor::project_cloud()
         project_points(mid, R, points, colors, index_search, occupied_indices, i);
         rotations[i] = R;
         means[i] = mid;
+        ++i;
     }
     delete[] occupied_indices;
 }

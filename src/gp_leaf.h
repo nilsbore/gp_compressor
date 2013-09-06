@@ -2,9 +2,6 @@
 #define GP_LEAF_H
 
 #include <pcl/octree/octree_container.h>
-#include <pcl/point_types.h>
-#include <vector>
-#include "sparse_gp.h"
 
 class gp_leaf : public pcl::octree::OctreeContainerDataTVector<int>
 {
