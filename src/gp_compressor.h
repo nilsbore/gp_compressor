@@ -7,14 +7,17 @@
 #include <vector>
 #include <list>
 #include "sparse_gp.h"
+#include "gp_octree.h"
 
 class gp_compressor
 {
 public:
     typedef pcl::PointXYZRGB point;
     typedef pcl::PointCloud<point> pointcloud;
+    typedef pcl::octree::OctreePointCloudSearch<point, gp_leaf>::OctreeT::LeafNodeIterator leaf_iterator;
 protected:
     pointcloud::ConstPtr cloud; // the input pointcloud with RGB color information
+    gp_octree octree;
     float res;
     int sz;
 
@@ -25,7 +28,8 @@ protected:
     // the means in RGB color space
     //std::vector<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f> > RGB_means;
 
-    std::vector<std::list<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f> > > S;
+    std::vector<std::list<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f> > > S; // more or less for debugging
+    std::vector<std::list<Eigen::Vector3f, Eigen::aligned_allocator<Eigen::Vector3f> > > to_be_added;
     // same for RGB, first the R vectors then G and B
     //Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic> RGB;
     // the masks showing where in the patches there are observations

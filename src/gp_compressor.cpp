@@ -1,12 +1,8 @@
 #include "gp_compressor.h"
 
 #include "gaussian_process.h"
-//#include "gp_leaf.h"
-#include "gp_octree.h"
 
 #include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/octree/octree_impl.h>
-//#include <pcl/octree/octree_key.h>
 #include <pcl/io/pcd_io.h>
 #include <stdint.h>
 #include <boost/thread/thread.hpp>
@@ -14,7 +10,7 @@
 using namespace Eigen;
 
 gp_compressor::gp_compressor(pointcloud::ConstPtr cloud, float res, int sz) :
-    cloud(cloud), res(res), sz(sz)
+    cloud(cloud), octree(res), res(res), sz(sz)
 {
 
 }
@@ -94,13 +90,18 @@ void gp_compressor::project_points(Vector3f& center, const Matrix3f& R, MatrixXf
         ind = sz*int(float(sz)/res*pt(1)) + int(float(sz)/res*pt(2));
         float current_count = count(ind);
         S[i].push_back(pt);
+        to_be_added[i].push_back(pt);
         c = colors.col(m);
         /*for (int n = 0; n < 3; ++n) {
             RGB(ind, n*S.cols() + i) = (current_count*RGB(ind, n*S.cols() + i) + float(c(n))) / (current_count + 1);
         }*/
         count(ind) += 1;
     }
-    mn /= S[i].size(); // check that mn != 0
+    mn /= to_be_added[i].size(); // check that mn != 0
+    for (Vector3f& p : to_be_added[i]) {
+        p(0) -= mn;
+        //std::cout << p(0) << " " << std::endl;
+    }
     for (Vector3f& p : S[i]) {
         p(0) -= mn;
         //std::cout << p(0) << " " << std::endl;
@@ -118,32 +119,48 @@ void gp_compressor::project_points(Vector3f& center, const Matrix3f& R, MatrixXf
     W.col(i) = count > 0;
 }
 
+// do this for to_be_added instead, loop through leaves
 void gp_compressor::train_processes()
 {
     MatrixXd X;
     VectorXd y;
-    gps.resize(S.size());
-    for (int i = 0; i < S.size(); ++i) {
-        if (S[i].size() == 0) {
+    gps.resize(to_be_added.size());
+    int i;
+    leaf_iterator iter(octree);
+    while (*++iter) {
+        gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
+        if (leaf == NULL) {
+            std::cout << "doesn't work, exiting..." << std::endl;
+            exit(0);
+        }
+        i = leaf->gp_index;
+        if (to_be_added[i].size() == 0) {
             continue;
         }
-        X.resize(S[i].size(), 2);
-        y.resize(S[i].size());
+        leaf->reset();
+        X.resize(to_be_added[i].size(), 2);
+        y.resize(to_be_added[i].size());
         int m = 0;
-        for (const Vector3f& p : S[i]) {
+        for (const Vector3f& p : to_be_added[i]) {
             X.row(m) = p.tail<2>().transpose().cast<double>();
             y(m) = p(0);
             ++m;
         }
-        X.conservativeResize(m, 2);
-        y.conservativeResize(m);
         gps[i].add_measurements(X, y);
     }
+    /*leaf_iterator iter1(octree);
+    while (*++iter1) {
+        gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter1);
+        if (leaf == NULL) {
+            std::cout << "doesn't work, exiting..." << std::endl;
+            exit(0);
+        }
+        std::cout << "Leaf " << leaf->gp_index << ", size " << leaf->getSize() << std::endl;
+    }*/
 }
 
 void gp_compressor::project_cloud()
 {
-    gp_octree octree(res);
     octree.setInputCloud(cloud);
     octree.addPointsFromInputCloud();
 
@@ -151,6 +168,7 @@ void gp_compressor::project_cloud()
     int n = octree.getLeafCount();
 
     S.resize(n);
+    to_be_added.resize(n);
     W.resize(sz*sz, n);
     //RGB.resize(sz*sz, 3*centers.size());
     rotations.resize(n);
@@ -167,7 +185,6 @@ void gp_compressor::project_cloud()
 
     point center;
     int i = 0;
-    typedef pcl::octree::OctreePointCloudSearch<point, gp_leaf>::OctreeT::LeafNodeIterator leaf_iterator;
     leaf_iterator iter(octree);
     while(*++iter) {
         pcl::octree::OctreeKey key = iter.getCurrentOctreeKey();
