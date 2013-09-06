@@ -3,9 +3,11 @@
 using namespace Eigen;
 
 gp_registration::gp_registration(pointcloud::ConstPtr cloud, float res, int sz) : gp_compressor(cloud, res, sz),
-    mean1(0), mean2(0), accumulated_weight(0)
+    accumulated_weight(0), step(0.1)
 {
     covariance.setZero();
+    mean1.setZero();
+    mean2.setZero();
     project_cloud();
     std::cout << "Number of patches: " << S.size() << std::endl;
     train_processes();
@@ -18,13 +20,12 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
 
 void gp_registration::add_derivative(const Vector3d& x, const Vector3d& dx)
 {
-    weight = dx.norm();
+    double weight = dx.norm();
     if (weight == 0.0f) {
         return;
     }
-    dx *= step/weight;
 
-    Vector3d cx = x + dx;
+    Vector3d cx = x + step/weight*dx;
 
     accumulated_weight += weight;
     double alpha = weight / accumulated_weight;
@@ -39,7 +40,7 @@ void gp_registration::add_derivative(const Vector3d& x, const Vector3d& dx)
 
 void gp_registration::get_transformation(Matrix3d& R, Vector3d& t)
 {
-    JacobiSVD<Matrix3d> svd(covariance_, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    JacobiSVD<Matrix3d> svd(covariance, Eigen::ComputeFullU | Eigen::ComputeFullV);
     const Matrix3d& u = svd.matrixU();
     const Matrix3d& v = svd.matrixV();
     Matrix3d s;
@@ -48,5 +49,5 @@ void gp_registration::get_transformation(Matrix3d& R, Vector3d& t)
         s(2, 2) = -1.0f;
     }
     R = u * s * v.transpose();
-    t = mean2_ - r*mean1_;
+    t = mean2 - R*mean1;
 }

@@ -147,6 +147,7 @@ void gp_compressor::train_processes()
             ++m;
         }
         gps[i].add_measurements(X, y);
+        to_be_added[i].clear();
     }
     /*leaf_iterator iter1(octree);
     while (*++iter1) {

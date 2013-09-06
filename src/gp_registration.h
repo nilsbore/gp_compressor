@@ -11,11 +11,14 @@ public:
     using gp_compressor::pointcloud;
 private:
     double step;
-    double mean1;
-    double mean2;
+    Eigen::Vector3d mean1;
+    Eigen::Vector3d mean2;
     double accumulated_weight;
-    Matrix3d covariance;
+    Eigen::Matrix3d covariance;
+    void add_derivative(const Eigen::Vector3d& x, const Eigen::Vector3d& dx);
+    void get_transformation(Eigen::Matrix3d& R, Eigen::Vector3d& t);
 public:
+    void add_cloud(pointcloud::ConstPtr other_cloud);
     gp_registration(pointcloud::ConstPtr cloud, float res = 0.1f, int sz = 10);
 };
 
