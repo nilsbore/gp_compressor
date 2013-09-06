@@ -10,7 +10,11 @@ public:
     using gp_compressor::point;
     using gp_compressor::pointcloud;
 private:
-
+    double step;
+    double mean1;
+    double mean2;
+    double accumulated_weight;
+    Matrix3d covariance;
 public:
     gp_registration(pointcloud::ConstPtr cloud, float res = 0.1f, int sz = 10);
 };

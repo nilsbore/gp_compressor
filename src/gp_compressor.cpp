@@ -1,6 +1,7 @@
 #include "gp_compressor.h"
 
 #include "gaussian_process.h"
+#include "gp_leaf.h"
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/octree/octree_impl.h>
@@ -140,7 +141,7 @@ void gp_compressor::train_processes()
 
 void gp_compressor::project_cloud()
 {
-    pcl::octree::OctreePointCloudSearch<point> octree(res);
+    pcl::octree::OctreePointCloudSearch<point, gp_leaf> octree(res);
     octree.setInputCloud(cloud);
     octree.addPointsFromInputCloud();
 
@@ -161,6 +162,26 @@ void gp_compressor::project_cloud()
     Eigen::Matrix3f R;
     Vector3f mid;
     int* occupied_indices = new int[cloud->width*cloud->height]();
+
+    typedef pcl::octree::OctreePointCloudSearch<point, gp_leaf>::OctreeT::LeafNodeIterator leaf_iterator;
+    leaf_iterator iter(octree);
+
+    int kk = 0;
+    while(*++iter) {
+        //gp_leaf leaf;
+        //pcl::octree::OctreeContainerDataTVector<int> leaf;
+        //iter.getData(leaf);
+        //std::cout << leaf.added_points.size() << std::endl;
+        gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
+        if (leaf == NULL) {
+            std::cout << "doesn't work, exiting..." << std::endl;
+            exit(0);
+        }
+        std::cout << "Number: " << kk++ << std::endl;
+        std::cout << leaf->gp_index << std::endl;
+    }
+
+
     point center;
     for (int i = 0; i < centers.size(); ++i) {
         center = centers[i];
