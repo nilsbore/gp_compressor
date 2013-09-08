@@ -3,6 +3,8 @@
 #include <pcl/point_cloud.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/common/utils.h>
+#include <pcl/common/transforms.h>
 #include <boost/thread/thread.hpp>
 #include "gp_registration.h"
 
@@ -25,6 +27,17 @@ int main(int argc, char** argv)
         std::cout << "Couldn't read file " << filename << std::endl;
         return 0;
     }
+
+
+    // Set initial alignment estimate found using robot odometry.
+    Eigen::AngleAxisf init_rotation(0.1, Eigen::Vector3f::UnitZ ());
+    //Eigen::AngleAxisf init_rotation (0.0, Eigen::Vector3f::UnitZ ());
+    Eigen::Translation3f init_translation(0.02, 0.02, 0.02);
+    //Eigen::Translation3f init_translation (0, 0, 0);
+    Eigen::Matrix4f init_guess = (init_translation * init_rotation).matrix();
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
+    pcl::transformPointCloud(*other_cloud, *transformed_cloud, init_guess);
+
     comp.add_cloud(other_cloud);
     //pointcloud_compressor comp("../data/office1.pcd", 0.2f, 20, 200, 10, 1e-2f, 5e-5f, 300, 20, 1e4f, 1e1f);
     //comp.save_compressed("test");
@@ -49,7 +62,7 @@ int main(int argc, char** argv)
     while (!viewer->wasStopped())
     {
         viewer->spinOnce(100);
-        boost::this_thread::sleep(boost::posix_time::microseconds (100000));
+        boost::this_thread::sleep(boost::posix_time::microseconds(100000));
     }
 
     return 0;
