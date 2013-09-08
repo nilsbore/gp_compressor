@@ -358,7 +358,7 @@ double sparse_gp::log_prob(const VectorXd& X_star, const VectorXd& f_star)
 }
 
 // the differential kernel vector with respect to x
-void sparse_gp::kernel_dx(MatrixXd k_dx, const Vector2d& x)
+void sparse_gp::kernel_dx(MatrixXd& k_dx, const Vector2d& x)
 {
     k_dx.resize(BV.cols(), 2);
     RowVector2d offset;
@@ -384,8 +384,9 @@ void sparse_gp::likelihood_dx(Vector3d& dx, const Vector2d& x, double y)
     VectorXd k;
     construct_covariance(k, x, BV);
     MatrixXd k_dx;
+    //std::cout << "BV height " << BV.rows() << ", width " << BV.cols() << std::endl;
     kernel_dx(k_dx, x);
-    Array2d sigma_dx = 2*k_dx.transpose()*C*k;
+    Array2d sigma_dx = 2.0f*k_dx.transpose()*C*k;
     double sigma = s20 + k.transpose()*C*k;
     double sqrtsigma = sqrt(sigma);
     double offset = y - k.transpose()*alpha;

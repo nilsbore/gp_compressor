@@ -27,7 +27,7 @@ private:
     void construct_covariance(Eigen::VectorXd& K, const Eigen::Vector2d& X, const Eigen::MatrixXd& Xv);
     double kernel_function(const Eigen::Vector2d& xi, const Eigen::Vector2d& xj);
     void shuffle(std::vector<int>& ind, int n);
-    void kernel_dx(Eigen::MatrixXd k_dx, const Eigen::Vector2d& x);
+    void kernel_dx(Eigen::MatrixXd& k_dx, const Eigen::Vector2d& x);
     void likelihood_dx(Eigen::Vector3d& dx, const Eigen::Vector2d& x, double y);
 public:
     void add_measurements(const Eigen::MatrixXd& X,const Eigen::VectorXd& y);

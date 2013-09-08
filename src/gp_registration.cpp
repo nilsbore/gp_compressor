@@ -24,21 +24,21 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
     get_transformation(R, t);
 }
 
-void gp_registration::get_local_points(MatrixXf& points, int* occupied_indices, int i)
+void gp_registration::get_local_points(MatrixXf& points, int* occupied_indices, const std::vector<int>& index_search, int i)
 {
     Vector3f pt;
+    int ind;
     int k = 0;
     for (int m = 0; m < points.cols(); ++m) {
-        if (occupied_indices[i]) {
+        ind = index_search[m];
+        if (occupied_indices[ind]) {
             continue;
         }
         pt = rotations[i].toRotationMatrix().transpose()*(points.col(m) - means[i]); // transforming to the patch coordinate system
-        pt(1) += res/2.0f; // moving the points to go 0 < x < res
-        pt(2) += res/2.0f;
-        if (pt(1) > res || pt(1) < 0 || pt(2) > res || pt(2) < 0) {
+        if (pt(1) > res/2.0f || pt(1) < -res/2.0f || pt(2) > res/2.0f || pt(2) < -res/2.0f) {
             continue;
         }
-        occupied_indices[i] = 1;
+        occupied_indices[ind] = 1;
         points.col(k) = pt;
         ++k;
     }
@@ -67,7 +67,6 @@ void gp_registration::compute_transformation()
         }
 
         if (leaf->gp_index == -1) {
-            ++i;
             continue;
         }
         octree.radiusSearch(center, radius, index_search, distances);
@@ -78,14 +77,14 @@ void gp_registration::compute_transformation()
             points(1, m) = cloud->points[index_search[m]].y;
             points(2, m) = cloud->points[index_search[m]].z;
         }
-        get_local_points(points, occupied_indices, index_search[i]);
+        get_local_points(points, occupied_indices, index_search, i);
         MatrixXd dX;
         gps[i].compute_derivatives(dX, points.block(0, 0, 2, points.cols()).transpose().cast<double>(),
                                    points.row(2).transpose().cast<double>());
         // get derivatives of points from gp
         add_derivatives(points.transpose().cast<double>(), dX);
-
-        ++i;
+        std::cout << "Number of points: " << points.cols() << std::endl;
+        std::cout << "Index search: " << index_search.size() << std::endl;
     }
     delete[] occupied_indices;
 }

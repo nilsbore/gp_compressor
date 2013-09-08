@@ -18,7 +18,7 @@ private:
     void add_derivatives(const Eigen::MatrixXd& X, const Eigen::MatrixXd& dX);
     void get_transformation(Eigen::Matrix3d& R, Eigen::Vector3d& t);
     void compute_transformation();
-    void get_local_points(Eigen::MatrixXf& points, int* occupied_indices, int i);
+    void get_local_points(Eigen::MatrixXf& points, int* occupied_indices, const std::vector<int>& index_search, int i);
 public:
     void add_cloud(pointcloud::ConstPtr other_cloud);
     gp_registration(pointcloud::ConstPtr cloud, float res = 0.1f, int sz = 10);
