@@ -28,12 +28,13 @@ private:
     double kernel_function(const Eigen::Vector2d& xi, const Eigen::Vector2d& xj);
     void shuffle(std::vector<int>& ind, int n);
     void kernel_dx(Eigen::MatrixXd k_dx, const Eigen::Vector2d& x);
+    void likelihood_dx(Eigen::Vector3d& dx, const Eigen::Vector2d& x, double y);
 public:
     void add_measurements(const Eigen::MatrixXd& X,const Eigen::VectorXd& y);
     void predict_measurements(Eigen::VectorXd& f_star, const Eigen::MatrixXd& X_star,
                               Eigen::VectorXd& sigconf, bool conf = false);
     double log_prob(const Eigen::VectorXd& X_star, const Eigen::VectorXd& f_star);
-    void likelihood_dx(Eigen::Vector3d& dx, const Eigen::Vector2d& x, double y);
+    void compute_derivatives(Eigen::MatrixXd& dX, const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
     sparse_gp(int capacity = 20, double s0 = 1e-2f, double sigmaf = 1e-2f, double l = 0.08*0.08);
 };
 

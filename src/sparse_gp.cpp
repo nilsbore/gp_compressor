@@ -368,6 +368,16 @@ void sparse_gp::kernel_dx(MatrixXd k_dx, const Vector2d& x)
     }
 }
 
+void sparse_gp::compute_derivatives(MatrixXd& dX, const MatrixXd& X, const VectorXd& y)
+{
+    dX.resize(X.rows(), 3);
+    Vector3d dx;
+    for (int i = 0; i < X.rows(); ++i) {
+        likelihood_dx(dx, X.row(i).transpose(), y(i));
+        dX.row(i) = dx.transpose();
+    }
+}
+
 // the differential likelihood with respect to x and y
 void sparse_gp::likelihood_dx(Vector3d& dx, const Vector2d& x, double y)
 {
@@ -375,7 +385,7 @@ void sparse_gp::likelihood_dx(Vector3d& dx, const Vector2d& x, double y)
     construct_covariance(k, x, BV);
     MatrixXd k_dx;
     kernel_dx(k_dx, x);
-    Array2d sigma_dx = 2*k_dx.transpose()*C*k_dx;
+    Array2d sigma_dx = 2*k_dx.transpose()*C*k;
     double sigma = s20 + k.transpose()*C*k;
     double sqrtsigma = sqrt(sigma);
     double offset = y - k.transpose()*alpha;

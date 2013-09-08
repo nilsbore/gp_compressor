@@ -9,6 +9,7 @@ class gp_octree : public pcl::octree::OctreePointCloudSearch<pcl::PointXYZRGB, g
 {
 public:
     void generate_voxel_center(pcl::PointXYZRGB& center, const pcl::octree::OctreeKey& key);
+    void update_points();
     gp_octree(const double resolution);
 };
 

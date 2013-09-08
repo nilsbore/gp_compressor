@@ -9,10 +9,10 @@
 
 using namespace Eigen;
 
-gp_compressor::gp_compressor(pointcloud::ConstPtr cloud, float res, int sz) :
-    cloud(cloud), octree(res), res(res), sz(sz)
+gp_compressor::gp_compressor(pointcloud::ConstPtr ncloud, float res, int sz) :
+    cloud(new pointcloud()), octree(res), res(res), sz(sz)
 {
-
+    cloud->insert(cloud->begin(), ncloud->begin(), ncloud->end());
 }
 
 void gp_compressor::save_compressed(const std::string& name)
@@ -72,23 +72,22 @@ void gp_compressor::project_points(Vector3f& center, const Matrix3f& R, MatrixXf
     Vector3f pt;
     Matrix<short, 3, 1> c;
     int ind;
+    int x, y;
     float mn = 0;
     for (int m = 0; m < points.cols(); ++m) {
         if (occupied_indices[index_search[m]]) {
             continue;
         }
         pt = R.transpose()*(points.block<3, 1>(0, m) - center); // transforming to the patch coordinate system
-        pt(1) += res/2.0f; // moving the points to go 0 < x < res
-        pt(2) += res/2.0f;
-        if (pt(1) > res || pt(1) < 0 || pt(2) > res || pt(2) < 0) {
+        if (pt(1) > res/2 || pt(1) < -res/2 || pt(2) > res/2 || pt(2) < -res/2) {
             continue;
         }
         mn += pt(0);
         occupied_indices[index_search[m]] = 1;
-        //pt(1) *= float(sz)/res; // maybe just divide by res to get between 0 and 1
-        //pt(2) *= float(sz)/res;
-        ind = sz*int(float(sz)/res*pt(1)) + int(float(sz)/res*pt(2));
-        float current_count = count(ind);
+        x = int(float(sz)*(pt(1)/res+0.5f)); // transforming into image patch coordinates
+        y = int(float(sz)*(pt(2)/res+0.5f));
+        ind = sz*x + y;
+        //float current_count = count(ind);
         S[i].push_back(pt);
         to_be_added[i].push_back(pt);
         c = colors.col(m);
@@ -165,7 +164,6 @@ void gp_compressor::project_cloud()
     octree.setInputCloud(cloud);
     octree.addPointsFromInputCloud();
 
-    std::vector<point, Eigen::aligned_allocator<point> > centers;
     int n = octree.getLeafCount();
 
     S.resize(n);
@@ -199,9 +197,9 @@ void gp_compressor::project_cloud()
         leaf->gp_index = i;
 
         octree.radiusSearch(center, radius, index_search, distances);
-        MatrixXf points(4, index_search.size());
-        Matrix<short, Dynamic, Dynamic> colors(3, index_search.size());
+        MatrixXf points(4, index_search.size()); // 4 because of compute rotation
         points.row(3).setOnes();
+        Matrix<short, Dynamic, Dynamic> colors(3, index_search.size());
         for (int m = 0; m < index_search.size(); ++m) {
             points(0, m) = cloud->points[index_search[m]].x;
             points(1, m) = cloud->points[index_search[m]].y;
@@ -272,8 +270,8 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
                 if (!W(ind, i)) {
                     continue;
                 }
-                X_star(points, 0) = res/float(sz)*(double(x) + 0.5f);//(pt(1) + 0.5f)*res/float(sz) - res/2.0f; // both at the same time
-                X_star(points, 1) = res/float(sz)*(double(y) + 0.5f);//(pt(2) + 0.5f)*res/float(sz) - res/2.0f;
+                X_star(points, 0) = res*((double(x) + 0.5f)/double(sz) - 0.5f);
+                X_star(points, 1) = res*((double(y) + 0.5f)/double(sz) - 0.5f);
                 ++points;
             }
         }
@@ -281,8 +279,8 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
         gps[i].predict_measurements(f_star, X_star, V_star);
         for (int m = 0; m < points; ++m) {
             pt(0) = f_star(m);
-            pt(1) = X_star(m, 0) - res/2.0f; // both at the same time
-            pt(2) = X_star(m, 1) - res/2.0f;
+            pt(1) = X_star(m, 0); // both at the same time
+            pt(2) = X_star(m, 1);
             pt = rotations[i].toRotationMatrix()*pt + means[i];
             //std::cout << pt.transpose() << std::endl;
             ncloud->at(counter).x = pt(0);

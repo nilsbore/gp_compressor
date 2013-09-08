@@ -9,3 +9,15 @@ void gp_octree::generate_voxel_center(pcl::PointXYZRGB& center, const pcl::octre
 {
     genLeafNodeCenterFromOctreeKey(key, center);
 }
+
+void gp_octree::update_points()
+{
+    for (int i = 0; i < input_->points.size (); i++)
+    {
+        if (pcl::isFinite (input_->points[i]))
+        {
+            // add points to octree
+            this->addPointIdx(i);
+        }
+    }
+}

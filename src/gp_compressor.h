@@ -16,7 +16,7 @@ public:
     typedef pcl::PointCloud<point> pointcloud;
     typedef pcl::octree::OctreePointCloudSearch<point, gp_leaf>::OctreeT::LeafNodeIterator leaf_iterator;
 protected:
-    pointcloud::ConstPtr cloud; // the input pointcloud with RGB color information
+    pointcloud::Ptr cloud; // the input pointcloud with RGB color information
     gp_octree octree;
     float res;
     int sz;
@@ -45,7 +45,7 @@ protected:
     void compress_colors();
     void train_processes();
 public:
-    gp_compressor(pointcloud::ConstPtr cloud, float res = 0.1f, int sz = 10);
+    gp_compressor(pointcloud::ConstPtr ncloud, float res = 0.1f, int sz = 10);
     void save_compressed(const std::string& name);
     pointcloud::Ptr load_compressed();
 };
