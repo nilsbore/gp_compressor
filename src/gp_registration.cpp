@@ -2,8 +2,11 @@
 
 using namespace Eigen;
 
-gp_registration::gp_registration(pointcloud::ConstPtr cloud, float res, int sz) : gp_compressor(cloud, res, sz),
-    accumulated_weight(0), step(0.1)
+gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
+                                 pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters,
+                                 pcl::PointCloud<pcl::Normal>::Ptr normals) :
+    gp_compressor(cloud, res, sz),
+    accumulated_weight(0), step(0.1), ncenters(ncenters), normals(normals)
 {
     covariance.setZero();
     mean1.setZero();
@@ -24,9 +27,9 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
     get_transformation(R, t);
 }
 
-void gp_registration::get_local_points(MatrixXf& points, int* occupied_indices, const std::vector<int>& index_search, int i)
+void gp_registration::get_local_points(MatrixXd& points, int* occupied_indices, const std::vector<int>& index_search, int i)
 {
-    Vector3f pt;
+    Vector3d pt;
     int ind;
     int k = 0;
     for (int m = 0; m < points.cols(); ++m) {
@@ -47,14 +50,21 @@ void gp_registration::get_local_points(MatrixXf& points, int* occupied_indices, 
 
 void gp_registration::compute_transformation()
 {
-    float radius = sqrt(3.0f)/2.0f*res; // radius of the sphere encompassing the voxels
+    if (ncenters) {
+        ncenters->resize(cloud->size());
+        normals->resize(cloud->size());
+    }
+    double radius = sqrt(3.0f)/2.0f*res; // radius of the sphere encompassing the voxels
 
     std::vector<int> index_search;
     std::vector<float> distances;
     int* occupied_indices = new int[cloud->width*cloud->height](); // cloud.size()?
 
+    Matrix3d R;
+    Vector3d t;
     point center;
     int i;
+    int k = 0; // for normal plotting
     leaf_iterator iter(octree);
     while(*++iter) {
         pcl::octree::OctreeKey key = iter.getCurrentOctreeKey();
@@ -71,7 +81,7 @@ void gp_registration::compute_transformation()
         }
         octree.radiusSearch(center, radius, index_search, distances);
         i = leaf->gp_index;
-        MatrixXf points(3, index_search.size());
+        MatrixXd points(3, index_search.size());
         for (int m = 0; m < index_search.size(); ++m) {
             points(0, m) = cloud->points[index_search[m]].x;
             points(1, m) = cloud->points[index_search[m]].y;
@@ -81,10 +91,33 @@ void gp_registration::compute_transformation()
         MatrixXd dX;
         gps[i].compute_derivatives(dX, points.block(0, 0, 2, points.cols()).transpose().cast<double>(),
                                    points.row(2).transpose().cast<double>());
+        // transform points and derivatives to global system
+        R = rotations[i].toRotationMatrix();
+        t = means[i];
+        for (int m = 0; m < points.cols(); ++m) {
+            points.col(m) = R*points.col(m) + t;
+        }
+        dX *= R.transpose(); // transpose because vectors transposed
+        if (ncenters) {
+            for (int m = 0; m < points.cols(); ++m) {
+                ncenters->at(k).x = points(0, m);
+                ncenters->at(k).y = points(1, m);
+                ncenters->at(k).z = points(2, m);
+                normals->at(k).normal_x = 1e-5f*dX(m, 0);
+                normals->at(k).normal_y = 1e-5f*dX(m, 1);
+                normals->at(k).normal_z = 1e-5f*dX(m, 2);
+                ++k;
+            }
+        }
+
         // get derivatives of points from gp
         add_derivatives(points.transpose().cast<double>(), dX);
         std::cout << "Number of points: " << points.cols() << std::endl;
         std::cout << "Index search: " << index_search.size() << std::endl;
+    }
+    if (ncenters) {
+        ncenters->resize(k);
+        normals->resize(k);
     }
     delete[] occupied_indices;
 }

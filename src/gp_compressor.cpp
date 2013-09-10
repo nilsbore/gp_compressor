@@ -9,7 +9,7 @@
 
 using namespace Eigen;
 
-gp_compressor::gp_compressor(pointcloud::ConstPtr ncloud, float res, int sz) :
+gp_compressor::gp_compressor(pointcloud::ConstPtr ncloud, double res, int sz) :
     cloud(new pointcloud()), octree(res), res(res), sz(sz)
 {
     cloud->insert(cloud->begin(), ncloud->begin(), ncloud->end());
@@ -25,18 +25,18 @@ void gp_compressor::save_compressed(const std::string& name)
     train_processes();
 }
 
-void gp_compressor::compute_rotation(Matrix3f& R, const MatrixXf& points)
+void gp_compressor::compute_rotation(Matrix3d& R, const MatrixXd& points)
 {
     if (points.cols() < 4) {
         R.setIdentity();
         return;
     }
-    JacobiSVD<MatrixXf> svd(points.transpose(), ComputeThinV); // kan ta U ist för transpose?
-    Vector3f normal = svd.matrixV().block<3, 1>(0, 3);
+    JacobiSVD<MatrixXd> svd(points.transpose(), ComputeThinV); // kan ta U ist för transpose?
+    Vector3d normal = svd.matrixV().block<3, 1>(0, 3);
     normal.normalize();
-    Vector3f x(1.0f, 0.0f, 0.0f);
-    Vector3f y(0.0f, 1.0f, 0.0f);
-    Vector3f z(0.0f, 0.0f, 1.0f);
+    Vector3d x(1.0f, 0.0f, 0.0f);
+    Vector3d y(0.0f, 1.0f, 0.0f);
+    Vector3d z(0.0f, 0.0f, 1.0f);
     if (fabs(normal(0)) > fabs(normal(1)) && fabs(normal(0)) > fabs(normal(2))) { // pointing in x dir
         if (normal(0) < 0) {
             normal *= -1;
@@ -62,46 +62,46 @@ void gp_compressor::compute_rotation(Matrix3f& R, const MatrixXf& points)
     R.col(2) = normal.cross(R.col(1));
 }
 
-void gp_compressor::project_points(Vector3f& center, const Matrix3f& R, MatrixXf& points,
+void gp_compressor::project_points(Vector3d& center, const Matrix3d& R, MatrixXd& points,
                                            const Matrix<short, Dynamic, Dynamic>& colors,
                                            const std::vector<int>& index_search,
                                            int* occupied_indices, int i)
 {
     ArrayXi count(sz*sz);
     count.setZero(); // not needed anymore, only need weights
-    Vector3f pt;
+    Vector3d pt;
     Matrix<short, 3, 1> c;
     int ind;
     int x, y;
-    float mn = 0;
+    double mn = 0;
     for (int m = 0; m < points.cols(); ++m) {
         if (occupied_indices[index_search[m]]) {
             continue;
         }
         pt = R.transpose()*(points.block<3, 1>(0, m) - center); // transforming to the patch coordinate system
-        if (pt(1) > res/2 || pt(1) < -res/2 || pt(2) > res/2 || pt(2) < -res/2) {
+        if (pt(1) > res/2.0f || pt(1) < -res/2.0f || pt(2) > res/2.0f || pt(2) < -res/2.0f) {
             continue;
         }
         mn += pt(0);
         occupied_indices[index_search[m]] = 1;
-        x = int(float(sz)*(pt(1)/res+0.5f)); // transforming into image patch coordinates
-        y = int(float(sz)*(pt(2)/res+0.5f));
+        x = int(double(sz)*(pt(1)/res+0.5f)); // transforming into image patch coordinates
+        y = int(double(sz)*(pt(2)/res+0.5f));
         ind = sz*x + y;
-        //float current_count = count(ind);
+        //double current_count = count(ind);
         S[i].push_back(pt);
         to_be_added[i].push_back(pt);
         c = colors.col(m);
         /*for (int n = 0; n < 3; ++n) {
-            RGB(ind, n*S.cols() + i) = (current_count*RGB(ind, n*S.cols() + i) + float(c(n))) / (current_count + 1);
+            RGB(ind, n*S.cols() + i) = (current_count*RGB(ind, n*S.cols() + i) + double(c(n))) / (current_count + 1);
         }*/
         count(ind) += 1;
     }
     mn /= to_be_added[i].size(); // check that mn != 0
-    for (Vector3f& p : to_be_added[i]) {
+    for (Vector3d& p : to_be_added[i]) {
         p(0) -= mn;
         //std::cout << p(0) << " " << std::endl;
     }
-    for (Vector3f& p : S[i]) {
+    for (Vector3d& p : S[i]) {
         p(0) -= mn;
         //std::cout << p(0) << " " << std::endl;
     }
@@ -140,7 +140,7 @@ void gp_compressor::train_processes()
         X.resize(to_be_added[i].size(), 2);
         y.resize(to_be_added[i].size());
         int m = 0;
-        for (const Vector3f& p : to_be_added[i]) {
+        for (const Vector3d& p : to_be_added[i]) {
             X.row(m) = p.tail<2>().transpose().cast<double>();
             y(m) = p(0);
             ++m;
@@ -174,12 +174,12 @@ void gp_compressor::project_cloud()
     means.resize(n);
     //RGB_means.resize(centers.size());
 
-    float radius = sqrt(3.0f)/2.0f*res; // radius of the sphere encompassing the voxels
+    double radius = sqrt(3.0f)/2.0f*res; // radius of the sphere encompassing the voxels
 
     std::vector<int> index_search;
     std::vector<float> distances;
-    Eigen::Matrix3f R;
-    Vector3f mid;
+    Eigen::Matrix3d R;
+    Vector3d mid;
     int* occupied_indices = new int[cloud->width*cloud->height]();
 
     point center;
@@ -197,7 +197,7 @@ void gp_compressor::project_cloud()
         leaf->gp_index = i;
 
         octree.radiusSearch(center, radius, index_search, distances);
-        MatrixXf points(4, index_search.size()); // 4 because of compute rotation
+        MatrixXd points(4, index_search.size()); // 4 because of compute rotation
         points.row(3).setOnes();
         Matrix<short, Dynamic, Dynamic> colors(3, index_search.size());
         for (int m = 0; m < index_search.size(); ++m) {
@@ -209,7 +209,7 @@ void gp_compressor::project_cloud()
             colors(2, m) = cloud->points[index_search[m]].b;
         }
         compute_rotation(R, points);
-        mid = Vector3f(center.x, center.y, center.z);
+        mid = Vector3d(center.x, center.y, center.z);
         project_points(mid, R, points, colors, index_search, occupied_indices, i);
         rotations[i] = R;
         means[i] = mid;
@@ -233,7 +233,7 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
     ncloud->points.resize(ncloud->width * ncloud->height);
     ncenters->points.resize(ncenters->width * ncenters->height);
     normals->points.resize(normals->width * normals->height);
-    Vector3f pt;
+    Vector3d pt;
     int counter = 0;
     int points;
     int ind;
@@ -242,7 +242,7 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
     MatrixXd X_star;
     VectorXd f_star;
     VectorXd V_star;
-    float sum_squared_error = 0;
+    double sum_squared_error = 0;
     for (int i = 0; i < n; ++i) {
         if (S[i].size() == 0) {
             continue;
@@ -252,7 +252,7 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
         X_star.resize(S[i].size(), 2);
         f.resize(S[i].size());
         int m = 0;
-        for (const Vector3f& p : S[i]) {
+        for (const Vector3d& p : S[i]) {
             X_star.row(m) = p.tail<2>().transpose().cast<double>();
             f(m) = p(0);
             ++m;
@@ -288,13 +288,13 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
             ncloud->at(counter).z = pt(2);
             int col = i % 3;
             if (col == 0) {
-                ncloud->at(counter).r = 255;
+                ncloud->at(counter).g = 150;
             }
             else if (col == 1) {
-                ncloud->at(counter).g = 255;
+                ncloud->at(counter).g = 200;
             }
             else {
-                ncloud->at(counter).b = 255;
+                ncloud->at(counter).g = 250;
             }
             ++counter;
         }
@@ -305,7 +305,7 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
         normals->at(i).normal_y = rotations[i].toRotationMatrix()(1, 0);
         normals->at(i).normal_z = rotations[i].toRotationMatrix()(2, 0);
     }
-    std::cout << "RMS error: " << sqrt(sum_squared_error / float(data_points)) << std::endl;
+    std::cout << "RMS error: " << sqrt(sum_squared_error / double(data_points)) << std::endl;
     ncloud->resize(counter);
     std::cout << "Size of transformed point cloud: " << ncloud->width*ncloud->height << std::endl;
     /*if (display) {
@@ -316,13 +316,13 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
 
 void gp_compressor::compress_depths()
 {
-    /*MatrixXf X;
-    VectorXf y;
+    /*MatrixXd X;
+    VectorXd y;
     for (int i = 0; i < S.size(); ++i) {
         X.resize(S[i].size(), 2);
         y.resize(S[i].size());
         int m = 0;
-        for (const Vector3f& p : S[i]) {
+        for (const Vector3d& p : S[i]) {
             X.row(m) = p.tail<2>().transpose();
             y(m) = p(0);
         }

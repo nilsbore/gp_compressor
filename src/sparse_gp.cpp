@@ -394,8 +394,8 @@ void sparse_gp::likelihood_dx(Vector3d& dx, const Vector2d& x, double y)
     Array2d firstpart = -0.5f*sigma_dx / (sigma*sqrtsigma);
     Array2d secondpart = 0.5f/sqrtsigma*(2.0f/sqrtsigma*(k_dx.transpose()*alpha).array()*offset +
                                         sigma_dx / (sigma*sigma) * offset*offset);
-    dx.head<2>() = exppart*(firstpart + secondpart);
-    dx(2) = -1.0f/(sigma*sqrtsigma)*offset*exppart;
+    dx(0) = -1.0f/(sigma*sqrtsigma)*offset*exppart;
+    dx.tail<2>() = exppart*(firstpart + secondpart);
 }
 
 // kernel function, to be separated out later
