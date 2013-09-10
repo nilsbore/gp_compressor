@@ -378,6 +378,34 @@ void sparse_gp::compute_derivatives(MatrixXd& dX, const MatrixXd& X, const Vecto
     }
 }
 
+void sparse_gp::compute_likelihoods(VectorXd& l, const MatrixXd& X, const VectorXd& y)
+{
+    l.resize(X.rows());
+    for (int i = 0; i < X.rows(); ++i) {
+        l(i) = likelihood(X.row(i).transpose(), y(i));
+    }
+}
+
+// likelihood, without log for derivatives
+double sparse_gp::likelihood(const Vector2d& x, double y)
+{
+    //This is pretty much prediction
+    double kstar = kernel_function(x, x);
+    VectorXd k;
+    construct_covariance(k, x, BV);
+    double mu;
+    double sigma;
+    if (current_size == 0) { // no measurements, only prior gaussian around 0
+        mu = 0.0f;
+        sigma = kstar + s20; // maybe integrate this into likelihood_dx also
+    }
+    else {
+        mu = k.transpose()*alpha; //Page 33
+        sigma = s20 + kstar + k.transpose()*C*k;//Ibid..needs s2 from page 19
+    }
+    return 1.0/sqrt(2.0*M_PI*sigma)*exp(-0.5/sigma*(y - mu)*(y - mu));
+}
+
 // the differential likelihood with respect to x and y
 void sparse_gp::likelihood_dx(Vector3d& dx, const Vector2d& x, double y)
 {
@@ -392,10 +420,12 @@ void sparse_gp::likelihood_dx(Vector3d& dx, const Vector2d& x, double y)
     double offset = y - k.transpose()*alpha;
     double exppart = exp(-0.5f/sigma * offset*offset);
     Array2d firstpart = -0.5f*sigma_dx / (sigma*sqrtsigma);
-    Array2d secondpart = 0.5f/sqrtsigma*(2.0f/sqrtsigma*(k_dx.transpose()*alpha).array()*offset +
-                                        sigma_dx / (sigma*sigma) * offset*offset);
-    dx(0) = -1.0f/(sigma*sqrtsigma)*offset*exppart;
-    dx.tail<2>() = exppart*(firstpart + secondpart);
+    Array2d secondpart = 0.5f/sqrtsigma*(2.0f/sqrtsigma*(k_dx.transpose()*alpha).array()*offset);// +
+    Array2d thirdpart = 0.5f/sqrtsigma*(sigma_dx / (sigma*sigma) * offset*offset);
+    //dx(0) = -1.0f/(sigma*sqrtsigma)*offset*exppart;
+    dx(0) = -offset;
+    dx.tail<2>().setZero();
+    //dx.tail<2>() = exppart*(firstpart + secondpart + thirdpart);
 }
 
 // kernel function, to be separated out later

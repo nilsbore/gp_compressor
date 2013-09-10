@@ -6,7 +6,7 @@ gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
                                  pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters,
                                  pcl::PointCloud<pcl::Normal>::Ptr normals) :
     gp_compressor(cloud, res, sz),
-    accumulated_weight(0), step(0.1), ncenters(ncenters), normals(normals)
+    accumulated_weight(0), step(1e-4f), ncenters(ncenters), normals(normals), P(6)
 {
     covariance.setZero();
     mean1.setZero();
@@ -14,6 +14,25 @@ gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
     project_cloud();
     std::cout << "Number of patches: " << S.size() << std::endl;
     train_processes();
+}
+
+void gp_registration::transform_pointcloud(pcl::PointCloud<pcl::PointXYZ>::Ptr c, const Matrix3d& R, const Vector3d& t)
+{
+    int n = c->size();
+    for (int i = 0; i < n; ++i) {
+        c->points[i].getVector3fMap() = (R*c->points[i].getVector3fMap().cast<double>() + t).cast<float>();
+    }
+}
+
+void gp_registration::get_transform_jacobian(MatrixXd& J, const Vector3d& x)
+{
+    J.block<3, 3>(0, 0).setIdentity();
+    J(0, 4) = x(2);
+    J(0, 5) = -x(1);
+    J(1, 3) = -x(2);
+    J(1, 5) = x(0);
+    J(2, 3) = x(1);
+    J(2, 4) = -x(0);
 }
 
 void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
@@ -25,6 +44,10 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
     Matrix3d R;
     Vector3d t;
     get_transformation(R, t);
+    if (ncenters) {
+        //transform_pointcloud(ncenters, R, t);
+    }
+    std::cout << "P derivative " << P << std::endl;
 }
 
 void gp_registration::get_local_points(MatrixXd& points, int* occupied_indices, const std::vector<int>& index_search, int i)
@@ -64,6 +87,8 @@ void gp_registration::compute_transformation()
     Vector3d t;
     point center;
     int i;
+    P.setZero();
+    added_derivatives = 0;
     int k = 0; // for normal plotting
     leaf_iterator iter(octree);
     while(*++iter) {
@@ -94,18 +119,24 @@ void gp_registration::compute_transformation()
         // transform points and derivatives to global system
         R = rotations[i].toRotationMatrix();
         t = means[i];
+        dX *= R.transpose(); // transpose because vectors transposed
+        MatrixXd J(3, 6);
         for (int m = 0; m < points.cols(); ++m) {
             points.col(m) = R*points.col(m) + t;
+            get_transform_jacobian(J, points.col(m));
+            std::cout << P << std::endl;
+            std::cout << dX.row(m)*J << std::endl;
+            P = (added_derivatives/(added_derivatives+1.0f))*P + 1.0f/(added_derivatives+1.0f)*dX.row(m)*J;
+            ++added_derivatives;
         }
-        dX *= R.transpose(); // transpose because vectors transposed
         if (ncenters) {
             for (int m = 0; m < points.cols(); ++m) {
                 ncenters->at(k).x = points(0, m);
                 ncenters->at(k).y = points(1, m);
                 ncenters->at(k).z = points(2, m);
-                normals->at(k).normal_x = 1e-5f*dX(m, 0);
-                normals->at(k).normal_y = 1e-5f*dX(m, 1);
-                normals->at(k).normal_z = 1e-5f*dX(m, 2);
+                normals->at(k).normal_x = 1e-0f*dX(m, 0);
+                normals->at(k).normal_y = 1e-0f*dX(m, 1);
+                normals->at(k).normal_z = 1e-0f*dX(m, 2);
                 ++k;
             }
         }

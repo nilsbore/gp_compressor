@@ -46,8 +46,8 @@ void display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr display_cloud,
 int main(int argc, char** argv)
 {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
-    std::string filename = "/home/nbore/Downloads/home_data_ascii/scene11_ascii.pcd";
-    //std::string filename = "../data/office1.pcd";
+    //std::string filename = "/home/nbore/Downloads/home_data_ascii/scene11_ascii.pcd";
+    std::string filename = "../data/office1.pcd";
     if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (filename, *cloud) == -1)
     {
         std::cout << "Couldn't read file " << filename << std::endl;
@@ -55,7 +55,7 @@ int main(int argc, char** argv)
     }
     pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters(new pcl::PointCloud<pcl::PointXYZ>());
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>());
-    gp_registration comp(cloud, 0.20f, 10, ncenters, normals);
+    gp_registration comp(cloud, 0.70f, 30, ncenters, normals);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr other_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
     if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (filename, *other_cloud) == -1)
     {
@@ -64,9 +64,9 @@ int main(int argc, char** argv)
     }
 
     // Set initial alignment estimate found using robot odometry.
-    Eigen::AngleAxisf init_rotation(0.1, Eigen::Vector3f::UnitZ ());
+    Eigen::AngleAxisf init_rotation(0.0, Eigen::Vector3f::UnitZ ());
     //Eigen::AngleAxisf init_rotation (0.0, Eigen::Vector3f::UnitZ ());
-    Eigen::Translation3f init_translation(0.06, 0.00, 0.00);
+    Eigen::Translation3f init_translation(-0.10, 0.00, 0.00);
     //Eigen::Translation3f init_translation (0, 0, 0);
     Eigen::Matrix4f init_guess = (init_translation * init_rotation).matrix();
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());

@@ -10,6 +10,8 @@ public:
     using gp_compressor::point;
     using gp_compressor::pointcloud;
 private:
+    Eigen::RowVectorXd P;
+    double added_derivatives;
     double step;
     Eigen::Vector3d mean1;
     Eigen::Vector3d mean2;
@@ -21,6 +23,8 @@ private:
     void get_transformation(Eigen::Matrix3d& R, Eigen::Vector3d& t);
     void compute_transformation();
     void get_local_points(Eigen::MatrixXd& points, int* occupied_indices, const std::vector<int>& index_search, int i);
+    void transform_pointcloud(pcl::PointCloud<pcl::PointXYZ>::Ptr c, const Eigen::Matrix3d& R, const Eigen::Vector3d& t);
+    void get_transform_jacobian(Eigen::MatrixXd& J, const Eigen::Vector3d& x);
 public:
     void add_cloud(pointcloud::ConstPtr other_cloud);
     gp_registration(pointcloud::ConstPtr cloud, double res = 0.1f, int sz = 10,
