@@ -35,6 +35,15 @@ void gp_registration::get_transform_jacobian(MatrixXd& J, const Vector3d& x)
     J(2, 4) = -x(0);
 }
 
+void gp_registration::gradient_step(Matrix3d& R, Vector3d& t)
+{
+    Matrix3d Rx = AngleAxisd(step*P(3), Vector3d::UnitX()).matrix();
+    Matrix3d Ry = AngleAxisd(step*P(4), Vector3d::UnitY()).matrix();
+    Matrix3d Rz = AngleAxisd(step*P(5), Vector3d::UnitZ()).matrix();
+    R = Rx*Ry*Rz;
+    t = step*P.head<3>().transpose();
+}
+
 void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
 {
     cloud->clear();
@@ -104,14 +113,15 @@ void gp_registration::compute_transformation()
         if (i == -1 || gps[i].size() == 0) { // size check to be unnecessary, just initialize gps > 100 points in leaf
             continue;
         }
-        octree.radiusSearch(center, radius, index_search, distances);
-
+        octree.radiusSearch(center, radius, index_search, distances); // search in octree
+        leaf->reset(); // remove references in octree
         MatrixXd points(3, index_search.size());
         for (int m = 0; m < index_search.size(); ++m) {
             points(0, m) = cloud->points[index_search[m]].x;
             points(1, m) = cloud->points[index_search[m]].y;
             points(2, m) = cloud->points[index_search[m]].z;
         }
+
         get_local_points(points, occupied_indices, index_search, i);
         MatrixXd dX;
         gps[i].compute_derivatives(dX, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
@@ -129,6 +139,7 @@ void gp_registration::compute_transformation()
             P = (added_derivatives/(added_derivatives+1.0f))*P + 1.0f/(added_derivatives+1.0f)*dX.row(m)*J;
             ++added_derivatives;
         }
+
         if (ncenters) {
             for (int m = 0; m < points.cols(); ++m) {
                 ncenters->at(k).x = points(0, m);

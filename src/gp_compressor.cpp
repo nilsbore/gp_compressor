@@ -136,7 +136,6 @@ void gp_compressor::train_processes()
         if (to_be_added[i].size() == 0) {
             continue;
         }
-        leaf->reset();
         X.resize(to_be_added[i].size(), 2);
         y.resize(to_be_added[i].size());
         int m = 0;
@@ -196,7 +195,8 @@ void gp_compressor::project_cloud()
         }
         leaf->gp_index = i; // too early!
 
-        octree.radiusSearch(center, radius, index_search, distances);
+        octree.radiusSearch(center, radius, index_search, distances); // search octree
+        leaf->reset(); // remove references in octree
         MatrixXd points(4, index_search.size()); // 4 because of compute rotation
         points.row(3).setOnes();
         Matrix<short, Dynamic, Dynamic> colors(3, index_search.size());
