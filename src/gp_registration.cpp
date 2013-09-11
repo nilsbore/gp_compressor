@@ -58,7 +58,7 @@ void gp_registration::get_local_points(MatrixXd& points, int* occupied_indices, 
     for (int m = 0; m < points.cols(); ++m) {
         ind = index_search[m];
         if (occupied_indices[ind]) {
-            continue;
+            //continue;
         }
         pt = rotations[i].toRotationMatrix().transpose()*(points.col(m) - means[i]); // transforming to the patch coordinate system
         if (pt(1) > res/2.0f || pt(1) < -res/2.0f || pt(2) > res/2.0f || pt(2) < -res/2.0f) {
@@ -74,8 +74,8 @@ void gp_registration::get_local_points(MatrixXd& points, int* occupied_indices, 
 void gp_registration::compute_transformation()
 {
     if (ncenters) {
-        ncenters->resize(cloud->size());
-        normals->resize(cloud->size());
+        ncenters->resize(2*cloud->size());
+        normals->resize(2*cloud->size());
     }
     double radius = sqrt(3.0f)/2.0f*res; // radius of the sphere encompassing the voxels
 
@@ -100,12 +100,12 @@ void gp_registration::compute_transformation()
             std::cout << "doesn't work, exiting..." << std::endl;
             exit(0);
         }
-
-        if (leaf->gp_index == -1) {
+        i = leaf->gp_index;
+        if (i == -1 || gps[i].size() == 0) { // size check to be unnecessary, just initialize gps > 100 points in leaf
             continue;
         }
         octree.radiusSearch(center, radius, index_search, distances);
-        i = leaf->gp_index;
+
         MatrixXd points(3, index_search.size());
         for (int m = 0; m < index_search.size(); ++m) {
             points(0, m) = cloud->points[index_search[m]].x;
@@ -114,8 +114,8 @@ void gp_registration::compute_transformation()
         }
         get_local_points(points, occupied_indices, index_search, i);
         MatrixXd dX;
-        gps[i].compute_derivatives(dX, points.block(0, 0, 2, points.cols()).transpose().cast<double>(),
-                                   points.row(2).transpose().cast<double>());
+        gps[i].compute_derivatives(dX, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
+                                   points.row(0).transpose().cast<double>());
         // transform points and derivatives to global system
         R = rotations[i].toRotationMatrix();
         t = means[i];

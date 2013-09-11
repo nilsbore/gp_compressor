@@ -15,6 +15,11 @@ sparse_gp::sparse_gp(int capacity, double s0, double sigmaf, double l) :
 
 }
 
+int sparse_gp::size()
+{
+    return current_size;
+}
+
 void sparse_gp::shuffle(std::vector<int>& ind, int n)
 {
     ind.resize(n);
@@ -284,9 +289,8 @@ double sparse_gp::predict(const VectorXd& X_star, double& sigma, bool conf)
 
     double f_star;
     if (current_size == 0) {
+        f_star = 0; // gaussian around 0
         sigma = kstar + s20;
-        //We don't actually know the correct output dimensionality
-        //So return nothing.
         if (DEBUG) {
             printf("No training points added before prediction\n");
         }
@@ -406,6 +410,11 @@ double sparse_gp::likelihood(const Vector2d& x, double y)
     return 1.0/sqrt(2.0*M_PI*sigma)*exp(-0.5/sigma*(y - mu)*(y - mu));
 }
 
+void breakpoint()
+{
+    std::cout << "nan, breakpoint" << std::endl;
+}
+
 // the differential likelihood with respect to x and y
 void sparse_gp::likelihood_dx(Vector3d& dx, const Vector2d& x, double y)
 {
@@ -422,10 +431,13 @@ void sparse_gp::likelihood_dx(Vector3d& dx, const Vector2d& x, double y)
     Array2d firstpart = -0.5f*sigma_dx / (sigma*sqrtsigma);
     Array2d secondpart = 0.5f/sqrtsigma*(2.0f/sqrtsigma*(k_dx.transpose()*alpha).array()*offset);// +
     Array2d thirdpart = 0.5f/sqrtsigma*(sigma_dx / (sigma*sigma) * offset*offset);
-    //dx(0) = -1.0f/(sigma*sqrtsigma)*offset*exppart;
-    dx(0) = -offset;
-    dx.tail<2>().setZero();
-    //dx.tail<2>() = exppart*(firstpart + secondpart + thirdpart);
+    dx(0) = -1.0f/(sigma*sqrtsigma)*offset*exppart;
+    dx.tail<2>() = exppart*(firstpart + secondpart + thirdpart);
+    if (isnan(dx(0)) || isnan(dx(1)) || isnan(dx(2))) {
+        breakpoint();
+    }
+    //dx(0) = -offset;
+    //dx.tail<2>().setZero();
 }
 
 // kernel function, to be separated out later

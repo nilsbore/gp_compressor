@@ -31,6 +31,7 @@ private:
     void likelihood_dx(Eigen::Vector3d& dx, const Eigen::Vector2d& x, double y);
     double likelihood(const Eigen::Vector2d& x, double y);
 public:
+    int size();
     void add_measurements(const Eigen::MatrixXd& X,const Eigen::VectorXd& y);
     void predict_measurements(Eigen::VectorXd& f_star, const Eigen::MatrixXd& X_star,
                               Eigen::VectorXd& sigconf, bool conf = false);

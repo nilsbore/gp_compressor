@@ -194,7 +194,7 @@ void gp_compressor::project_cloud()
             std::cout << "doesn't work, exiting..." << std::endl;
             exit(0);
         }
-        leaf->gp_index = i;
+        leaf->gp_index = i; // too early!
 
         octree.radiusSearch(center, radius, index_search, distances);
         MatrixXd points(4, index_search.size()); // 4 because of compute rotation
@@ -288,13 +288,14 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
             ncloud->at(counter).z = pt(2);
             int col = i % 3;
             if (col == 0) {
-                ncloud->at(counter).g = 150;
+                ncloud->at(counter).g = 255;
             }
             else if (col == 1) {
-                ncloud->at(counter).g = 200;
+                ncloud->at(counter).b = 255;
             }
             else {
-                ncloud->at(counter).g = 250;
+                ncloud->at(counter).r = 255;
+                ncloud->at(counter).b = 255;
             }
             ++counter;
         }

@@ -28,7 +28,7 @@ void display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr display_cloud,
     if (display_centers) {
         pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> point_cloud_color_handler(display_centers, 255, 0, 0);
         viewer->addPointCloud(display_centers, point_cloud_color_handler, "registered");
-        viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(display_centers, display_normals, 50, 1.0, "normals");
+        viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(display_centers, display_normals, 50, 1e-2f, "normals");
     }
 
     // Starting visualizer
@@ -66,7 +66,7 @@ int main(int argc, char** argv)
     // Set initial alignment estimate found using robot odometry.
     Eigen::AngleAxisf init_rotation(0.0, Eigen::Vector3f::UnitZ ());
     //Eigen::AngleAxisf init_rotation (0.0, Eigen::Vector3f::UnitZ ());
-    Eigen::Translation3f init_translation(-0.10, 0.00, 0.00);
+    Eigen::Translation3f init_translation(0.20, 0.00, 0.00);
     //Eigen::Translation3f init_translation (0, 0, 0);
     Eigen::Matrix4f init_guess = (init_translation * init_rotation).matrix();
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
