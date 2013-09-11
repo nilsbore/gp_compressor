@@ -76,6 +76,7 @@ int main(int argc, char** argv)
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
     //std::string filename = "/home/nbore/Downloads/home_data_ascii/scene11_ascii.pcd";
     std::string filename = "../data/office1.pcd";
+    //std::string filename = "../data/room_scan1.pcd";
     if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (filename, *cloud) == -1)
     {
         std::cout << "Couldn't read file " << filename << std::endl;
@@ -85,6 +86,7 @@ int main(int argc, char** argv)
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>());
     gp_registration comp(cloud, 0.70f, 30, ncenters, normals);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr other_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
+    //filename = "../data/room_scan2.pcd";
     if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (filename, *other_cloud) == -1)
     {
         std::cout << "Couldn't read file " << filename << std::endl;
