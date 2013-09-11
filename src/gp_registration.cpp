@@ -5,18 +5,26 @@ using namespace Eigen;
 gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
                                  pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters,
                                  pcl::PointCloud<pcl::Normal>::Ptr normals) :
-    gp_compressor(cloud, res, sz),
-    accumulated_weight(0), step(1e-4f), ncenters(ncenters), normals(normals), P(6)
+    gp_compressor(cloud, res, sz), step(5e-3f), ncenters(ncenters), normals(normals), P(6)
 {
-    covariance.setZero();
+    /*covariance.setZero();
     mean1.setZero();
     mean2.setZero();
+    accumulated_weight = 0;*/
     project_cloud();
     std::cout << "Number of patches: " << S.size() << std::endl;
     train_processes();
 }
 
 void gp_registration::transform_pointcloud(pcl::PointCloud<pcl::PointXYZ>::Ptr c, const Matrix3d& R, const Vector3d& t)
+{
+    int n = c->size();
+    for (int i = 0; i < n; ++i) {
+        c->points[i].getVector3fMap() = (R*c->points[i].getVector3fMap().cast<double>() + t).cast<float>();
+    }
+}
+
+void gp_registration::transform_pointcloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr c, const Matrix3d& R, const Vector3d& t)
 {
     int n = c->size();
     for (int i = 0; i < n; ++i) {
@@ -48,15 +56,24 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
 {
     cloud->clear();
     cloud->insert(cloud->end(), other_cloud->begin(), other_cloud->end());
-    octree.update_points();
-    compute_transformation();
+}
+
+bool gp_registration::registration_done()
+{
+    return (P.head<3>().norm() < 0.1 && P.tail<3>().norm() < 0.1);
+}
+
+void gp_registration::registration_step()
+{
     Matrix3d R;
     Vector3d t;
-    get_transformation(R, t);
-    if (ncenters) {
-        //transform_pointcloud(ncenters, R, t);
-    }
+    octree.update_points();
+    compute_transformation();
+    gradient_step(R, t);
+    transform_pointcloud(cloud, R, t);
     std::cout << "P derivative " << P << std::endl;
+    std::cout << "P angles norm " << P.tail<3>().norm() << std::endl;
+    std::cout << "P translation norm " << P.head<3>().norm() << std::endl;
 }
 
 void gp_registration::get_local_points(MatrixXd& points, int* occupied_indices, const std::vector<int>& index_search, int i)
@@ -67,7 +84,7 @@ void gp_registration::get_local_points(MatrixXd& points, int* occupied_indices, 
     for (int m = 0; m < points.cols(); ++m) {
         ind = index_search[m];
         if (occupied_indices[ind]) {
-            //continue;
+            continue;
         }
         pt = rotations[i].toRotationMatrix().transpose()*(points.col(m) - means[i]); // transforming to the patch coordinate system
         if (pt(1) > res/2.0f || pt(1) < -res/2.0f || pt(2) > res/2.0f || pt(2) < -res/2.0f) {
@@ -83,8 +100,8 @@ void gp_registration::get_local_points(MatrixXd& points, int* occupied_indices, 
 void gp_registration::compute_transformation()
 {
     if (ncenters) {
-        ncenters->resize(2*cloud->size());
-        normals->resize(2*cloud->size());
+        ncenters->resize(cloud->size());
+        normals->resize(cloud->size());
     }
     double radius = sqrt(3.0f)/2.0f*res; // radius of the sphere encompassing the voxels
 
@@ -134,8 +151,8 @@ void gp_registration::compute_transformation()
         for (int m = 0; m < points.cols(); ++m) {
             points.col(m) = R*points.col(m) + t;
             get_transform_jacobian(J, points.col(m));
-            std::cout << P << std::endl;
-            std::cout << dX.row(m)*J << std::endl;
+            //std::cout << P << std::endl;
+            //std::cout << dX.row(m)*J << std::endl;
             P = (added_derivatives/(added_derivatives+1.0f))*P + 1.0f/(added_derivatives+1.0f)*dX.row(m)*J;
             ++added_derivatives;
         }
@@ -153,9 +170,9 @@ void gp_registration::compute_transformation()
         }
 
         // get derivatives of points from gp
-        add_derivatives(points.transpose().cast<double>(), dX);
-        std::cout << "Number of points: " << points.cols() << std::endl;
-        std::cout << "Index search: " << index_search.size() << std::endl;
+        //add_derivatives(points.transpose().cast<double>(), dX);
+        //std::cout << "Number of points: " << points.cols() << std::endl;
+        //std::cout << "Index search: " << index_search.size() << std::endl;
     }
     if (ncenters) {
         ncenters->resize(k);
@@ -164,7 +181,7 @@ void gp_registration::compute_transformation()
     delete[] occupied_indices;
 }
 
-void gp_registration::add_derivatives(const MatrixXd& X, const MatrixXd& dX)
+/*void gp_registration::add_derivatives(const MatrixXd& X, const MatrixXd& dX)
 {
     Vector3d diff1;
     Vector3d diff2;
@@ -205,4 +222,4 @@ void gp_registration::get_transformation(Matrix3d& R, Vector3d& t)
     }
     R = u * s * v.transpose();
     t = mean2 - R*mean1;
-}
+}*/
