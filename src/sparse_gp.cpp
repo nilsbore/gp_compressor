@@ -415,6 +415,7 @@ void breakpoint()
     std::cout << "nan, breakpoint" << std::endl;
 }
 
+// THIS NEEDS SOME SPEEDUP, PROBABLY BY COMPUTING SEVERAL AT ONCE
 // the differential likelihood with respect to x and y
 void sparse_gp::likelihood_dx(Vector3d& dx, const Vector2d& x, double y)
 {

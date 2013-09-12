@@ -198,7 +198,7 @@ void gp_registration::compute_transformation()
     delete[] occupied_indices;
 
     //LLT<MatrixXd> H(P.transpose()*P);
-    //delta = ls*H.solve(P.transpose());
+    //delta = H.solve(P.transpose());
     delta = P.transpose();
 }
 

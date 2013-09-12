@@ -85,7 +85,7 @@ int main(int argc, char** argv)
     }
     pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters(new pcl::PointCloud<pcl::PointXYZ>());
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>());
-    gp_registration comp(cloud, 0.40f, 20, ncenters, normals);
+    gp_registration comp(cloud, 0.40f, 40, ncenters, normals);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr other_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
     //filename = "../data/room_scan2.pcd";
     filename = "/home/nbore/Data/rgbd_dataset_freiburg1_room/pointclouds/1305031911.097196.pcd";
