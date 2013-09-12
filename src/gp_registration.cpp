@@ -5,7 +5,7 @@ using namespace Eigen;
 gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
                                  pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters,
                                  pcl::PointCloud<pcl::Normal>::Ptr normals) :
-    gp_compressor(cloud, res, sz), step(5e-3f), ncenters(ncenters), normals(normals), P(6)
+    gp_compressor(cloud, res, sz), step(2e-2f), ncenters(ncenters), normals(normals), P(6)
 {
     /*covariance.setZero();
     mean1.setZero();
@@ -14,6 +14,12 @@ gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
     project_cloud();
     std::cout << "Number of patches: " << S.size() << std::endl;
     train_processes();
+}
+
+void gp_registration::get_cloud_transformation(Matrix3d& R, Vector3d& t)
+{
+    R = R_cloud;
+    t = t_cloud;
 }
 
 void gp_registration::transform_pointcloud(pcl::PointCloud<pcl::PointXYZ>::Ptr c, const Matrix3d& R, const Vector3d& t)
@@ -45,22 +51,23 @@ void gp_registration::get_transform_jacobian(MatrixXd& J, const Vector3d& x)
 
 void gp_registration::gradient_step(Matrix3d& R, Vector3d& t)
 {
-    Matrix3d Rx = AngleAxisd(step*P(3), Vector3d::UnitX()).matrix();
-    Matrix3d Ry = AngleAxisd(step*P(4), Vector3d::UnitY()).matrix();
-    Matrix3d Rz = AngleAxisd(step*P(5), Vector3d::UnitZ()).matrix();
+    Matrix3d Rx = AngleAxisd(step*delta(3), Vector3d::UnitX()).matrix();
+    Matrix3d Ry = AngleAxisd(step*delta(4), Vector3d::UnitY()).matrix();
+    Matrix3d Rz = AngleAxisd(step*delta(5), Vector3d::UnitZ()).matrix();
     R = Rx*Ry*Rz;
-    t = step*P.head<3>().transpose();
+    t = step*delta.head<3>().transpose();
 }
 
 void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
 {
     cloud->clear();
     cloud->insert(cloud->end(), other_cloud->begin(), other_cloud->end());
+    step_nbr = 0;
 }
 
 bool gp_registration::registration_done()
 {
-    return (P.head<3>().norm() < 0.1 && P.tail<3>().norm() < 0.1);
+    return (delta.head<3>().norm() < 0.06 && delta.tail<3>().norm() < 0.08);
 }
 
 void gp_registration::registration_step()
@@ -70,10 +77,14 @@ void gp_registration::registration_step()
     octree.update_points();
     compute_transformation();
     gradient_step(R, t);
+    R_cloud = R_cloud*R; // add to total rotation
+    t_cloud += R_cloud*t; // add to total translation
     transform_pointcloud(cloud, R, t);
-    std::cout << "P derivative " << P << std::endl;
-    std::cout << "P angles norm " << P.tail<3>().norm() << std::endl;
-    std::cout << "P translation norm " << P.head<3>().norm() << std::endl;
+    std::cout << "Doing step number " << step_nbr << std::endl;
+    std::cout << "P derivative " << delta << std::endl;
+    std::cout << "P angles norm " << delta.tail<3>().norm() << std::endl;
+    std::cout << "P translation norm " << delta.head<3>().norm() << std::endl;
+    ++step_nbr;
 }
 
 void gp_registration::get_local_points(MatrixXd& points, int* occupied_indices, const std::vector<int>& index_search, int i)
@@ -111,9 +122,13 @@ void gp_registration::compute_transformation()
 
     Matrix3d R;
     Vector3d t;
+    MatrixXd J(3, 6);
+    MatrixXd dX;
+    VectorXd l;
     point center;
     int i;
     P.setZero();
+    ls = 0;
     added_derivatives = 0;
     int k = 0; // for normal plotting
     leaf_iterator iter(octree);
@@ -131,7 +146,7 @@ void gp_registration::compute_transformation()
             continue;
         }
         octree.radiusSearch(center, radius, index_search, distances); // search in octree
-        leaf->reset(); // remove references in octree
+        //leaf->reset(); // remove references in octree
         MatrixXd points(3, index_search.size());
         for (int m = 0; m < index_search.size(); ++m) {
             points(0, m) = cloud->points[index_search[m]].x;
@@ -140,19 +155,20 @@ void gp_registration::compute_transformation()
         }
 
         get_local_points(points, occupied_indices, index_search, i);
-        MatrixXd dX;
         gps[i].compute_derivatives(dX, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
+                                   points.row(0).transpose().cast<double>());
+        gps[i].compute_likelihoods(l, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
                                    points.row(0).transpose().cast<double>());
         // transform points and derivatives to global system
         R = rotations[i].toRotationMatrix();
         t = means[i];
         dX *= R.transpose(); // transpose because vectors transposed
-        MatrixXd J(3, 6);
         for (int m = 0; m < points.cols(); ++m) {
             points.col(m) = R*points.col(m) + t;
             get_transform_jacobian(J, points.col(m));
             //std::cout << P << std::endl;
             //std::cout << dX.row(m)*J << std::endl;
+            ls = (added_derivatives/(added_derivatives+1.0f))*ls + 1.0f/(added_derivatives+1.0f)*l(m);
             P = (added_derivatives/(added_derivatives+1.0f))*P + 1.0f/(added_derivatives+1.0f)*dX.row(m)*J;
             ++added_derivatives;
         }
@@ -174,11 +190,16 @@ void gp_registration::compute_transformation()
         //std::cout << "Number of points: " << points.cols() << std::endl;
         //std::cout << "Index search: " << index_search.size() << std::endl;
     }
+    octree.remove_just_points(); // not sure if this has any effect, removes points but not leaves
     if (ncenters) {
         ncenters->resize(k);
         normals->resize(k);
     }
     delete[] occupied_indices;
+
+    //LLT<MatrixXd> H(P.transpose()*P);
+    //delta = ls*H.solve(P.transpose());
+    delta = P.transpose();
 }
 
 /*void gp_registration::add_derivatives(const MatrixXd& X, const MatrixXd& dX)

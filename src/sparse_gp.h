@@ -38,7 +38,7 @@ public:
     double log_prob(const Eigen::VectorXd& X_star, const Eigen::VectorXd& f_star);
     void compute_derivatives(Eigen::MatrixXd& dX, const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
     void compute_likelihoods(Eigen::VectorXd& l, const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
-    sparse_gp(int capacity = 20, double s0 = 1e-1f, double sigmaf = 1e-2f, double l = 0.08*0.08);
+    sparse_gp(int capacity = 30, double s0 = 1e-1f, double sigmaf = 1e-2f, double l = 0.08*0.08);
 };
 
 #endif // SPARSE_GP_H

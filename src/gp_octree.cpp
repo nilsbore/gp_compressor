@@ -21,3 +21,13 @@ void gp_octree::update_points()
         }
     }
 }
+
+void gp_octree::remove_just_points()
+{
+    leaf_iterator iter(*this);
+    gp_leaf* leaf;
+    while(*++iter) {
+        leaf = dynamic_cast<gp_leaf*>(*iter);
+        leaf->reset();
+    }
+}

@@ -196,7 +196,7 @@ void gp_compressor::project_cloud()
         leaf->gp_index = i; // too early!
 
         octree.radiusSearch(center, radius, index_search, distances); // search octree
-        leaf->reset(); // remove references in octree
+        //leaf->reset(); // remove references in octree
         MatrixXd points(4, index_search.size()); // 4 because of compute rotation
         points.row(3).setOnes();
         Matrix<short, Dynamic, Dynamic> colors(3, index_search.size());
@@ -215,6 +215,7 @@ void gp_compressor::project_cloud()
         means[i] = mid;
         ++i;
     }
+    octree.remove_just_points();
     delete[] occupied_indices;
 }
 

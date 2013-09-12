@@ -10,9 +10,14 @@ public:
     using gp_compressor::point;
     using gp_compressor::pointcloud;
 private:
+    double ls;
     Eigen::RowVectorXd P;
+    Eigen::VectorXd delta;
     double added_derivatives;
     double step;
+    Eigen::Matrix3d R_cloud;
+    Eigen::Vector3d t_cloud;
+    int step_nbr;
     /*Eigen::Vector3d mean1;
     Eigen::Vector3d mean2;
     double accumulated_weight;
@@ -31,6 +36,7 @@ public:
     void add_cloud(pointcloud::ConstPtr other_cloud);
     bool registration_done();
     void registration_step();
+    void get_cloud_transformation(Eigen::Matrix3d& R, Eigen::Vector3d& t);
     gp_registration(pointcloud::ConstPtr cloud, double res = 0.1f, int sz = 10,
                     pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters = pcl::PointCloud<pcl::PointXYZ>::Ptr(),
                     pcl::PointCloud<pcl::Normal>::Ptr normals = pcl::PointCloud<pcl::Normal>::Ptr());
