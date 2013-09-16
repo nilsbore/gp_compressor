@@ -5,7 +5,7 @@ using namespace Eigen;
 gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
                                  pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters,
                                  pcl::PointCloud<pcl::Normal>::Ptr normals) :
-    gp_compressor(cloud, res, sz), step(2e-2f), ncenters(ncenters), normals(normals), P(6)
+    gp_compressor(cloud, res, sz), step(1e-3f), ncenters(ncenters), normals(normals), P(6)
 {
     /*covariance.setZero();
     mean1.setZero();
@@ -67,13 +67,14 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
 
 bool gp_registration::registration_done()
 {
-    return (delta.head<3>().norm() < 0.06 && delta.tail<3>().norm() < 0.08);
+    return (delta.head<3>().norm() < 0.5 && delta.tail<3>().norm() < 0.5);
 }
 
 void gp_registration::registration_step()
 {
     Matrix3d R;
     Vector3d t;
+    //octree.update_random_points(1.0f);
     octree.update_points();
     compute_transformation();
     gradient_step(R, t);
@@ -124,6 +125,7 @@ void gp_registration::compute_transformation()
     Vector3d t;
     MatrixXd J(3, 6);
     MatrixXd dX;
+    //MatrixXd dX_temp;
     VectorXd l;
     point center;
     int i;
@@ -155,10 +157,17 @@ void gp_registration::compute_transformation()
         }
 
         get_local_points(points, occupied_indices, index_search, i);
-        gps[i].compute_derivatives(dX, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
+        gps[i].compute_derivatives_fast(dX, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
                                    points.row(0).transpose().cast<double>());
-        gps[i].compute_likelihoods(l, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
+        /*gps[i].compute_derivatives_fast(dX_temp, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
                                    points.row(0).transpose().cast<double>());
+        double diff = (dX-dX_temp).array().abs().sum();
+        if (diff > 1e-6f) {
+            std::cout << dX-dX_temp << std::endl;
+            std::cout << "Didn't work, result: " << diff << std::endl;
+        }*/
+        //gps[i].compute_likelihoods(l, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
+          //                         points.row(0).transpose().cast<double>());
         // transform points and derivatives to global system
         R = rotations[i].toRotationMatrix();
         t = means[i];
@@ -168,7 +177,7 @@ void gp_registration::compute_transformation()
             get_transform_jacobian(J, points.col(m));
             //std::cout << P << std::endl;
             //std::cout << dX.row(m)*J << std::endl;
-            ls = (added_derivatives/(added_derivatives+1.0f))*ls + 1.0f/(added_derivatives+1.0f)*l(m);
+            //ls = (added_derivatives/(added_derivatives+1.0f))*ls + 1.0f/(added_derivatives+1.0f)*l(m);
             P = (added_derivatives/(added_derivatives+1.0f))*P + 1.0f/(added_derivatives+1.0f)*dX.row(m)*J;
             ++added_derivatives;
         }
@@ -197,8 +206,8 @@ void gp_registration::compute_transformation()
     }
     delete[] occupied_indices;
 
-    //LLT<MatrixXd> H(P.transpose()*P);
-    //delta = H.solve(P.transpose());
+    //JacobiSVD<MatrixXd> H(P.transpose()*P, ComputeThinU | ComputeThinV);
+    //delta = ls*H.solve(P.transpose());
     delta = P.transpose();
 }
 

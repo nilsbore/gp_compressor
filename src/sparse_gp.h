@@ -30,7 +30,10 @@ private:
     void kernel_dx(Eigen::MatrixXd& k_dx, const Eigen::Vector2d& x);
     void likelihood_dx(Eigen::Vector3d& dx, const Eigen::Vector2d& x, double y);
     double likelihood(const Eigen::Vector2d& x, double y);
+    void kernels_fast(Eigen::ArrayXXd& K_dx, Eigen::ArrayXXd& K_dy, const Eigen::MatrixXd& X);
+    void construct_covariance_fast(Eigen::MatrixXd& K, const Eigen::MatrixXd& X);
 public:
+    void compute_derivatives_fast(Eigen::MatrixXd& dX, const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
     int size();
     void add_measurements(const Eigen::MatrixXd& X,const Eigen::VectorXd& y);
     void predict_measurements(Eigen::VectorXd& f_star, const Eigen::MatrixXd& X_star,

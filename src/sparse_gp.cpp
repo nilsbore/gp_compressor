@@ -372,16 +372,6 @@ void sparse_gp::kernel_dx(MatrixXd& k_dx, const Vector2d& x)
     }
 }
 
-void sparse_gp::compute_derivatives(MatrixXd& dX, const MatrixXd& X, const VectorXd& y)
-{
-    dX.resize(X.rows(), 3);
-    Vector3d dx;
-    for (int i = 0; i < X.rows(); ++i) {
-        likelihood_dx(dx, X.row(i).transpose(), y(i));
-        dX.row(i) = dx.transpose();
-    }
-}
-
 void sparse_gp::compute_likelihoods(VectorXd& l, const MatrixXd& X, const VectorXd& y)
 {
     l.resize(X.rows());
@@ -415,6 +405,76 @@ void breakpoint()
     std::cout << "nan, breakpoint" << std::endl;
 }
 
+void sparse_gp::kernels_fast(ArrayXXd& K_dx, ArrayXXd& K_dy, const MatrixXd& X)
+{
+    K_dx.resize(BV.cols(), X.cols());
+    K_dy.resize(BV.cols(), X.cols());
+    MatrixXd offset;
+    ArrayXd exppart;
+    ArrayXd temp;
+    for (int i = 0; i < BV.cols(); ++i) {
+        offset = X - BV.col(i).replicate(1, X.cols());
+        temp = offset.colwise().squaredNorm();
+        exppart = -sigmaf_sq/l_sq*(-0.5/l_sq*temp).exp();
+        K_dx.row(i) = offset.row(0).array()*exppart.transpose();
+        K_dy.row(i) = offset.row(1).array()*exppart.transpose();
+    }
+}
+
+void sparse_gp::construct_covariance_fast(MatrixXd& K, const MatrixXd& X)
+{
+    K.resize(BV.cols(), X.cols());
+    MatrixXd rep;
+    ArrayXd temp;
+    for (int i = 0; i < BV.cols(); ++i) {
+        rep = BV.col(i).replicate(1, X.cols()); // typically more cols in X than in Xb
+        temp = (X - rep).colwise().squaredNorm();
+        K.row(i) = sigmaf_sq*(-0.5f/l_sq*temp).exp();
+    }
+}
+
+void sparse_gp::compute_derivatives_fast(MatrixXd& dX, const MatrixXd& X, const VectorXd& y)
+{
+    if (X.rows() == 0) {
+        dX.resize(0, 3);
+        return;
+    }
+    MatrixXd K;
+    construct_covariance_fast(K, X.transpose());
+    ArrayXXd K_dx;
+    ArrayXXd K_dy;
+    //std::cout << "BV height " << BV.rows() << ", width " << BV.cols() << std::endl;
+    kernels_fast(K_dx, K_dy, X.transpose());
+    ArrayXXd CK = C*K;
+    ArrayXd sigma_dx = 2.0f*(K_dx*CK).colwise().sum();
+    ArrayXd sigma_dy = 2.0f*(K_dy*CK).colwise().sum();
+    ArrayXd sigma = (K.array()*CK).colwise().sum() + s20;
+    ArrayXd sqrtsigma = sigma.sqrt();
+    ArrayXd offset = y - K.transpose()*alpha; // transpose?
+    ArrayXd sqoffset = offset*offset;
+    ArrayXd exppart = 0.5f*(-0.5f*sqoffset/sigma).exp()/(sigma*sqrtsigma);
+
+    //Array2d firstpart = -sigma_dx;
+    ArrayXd secondpart_dx = 2.0f*(K_dx.transpose().matrix()*alpha).array()*offset;
+    ArrayXd secondpart_dy = 2.0f*(K_dy.transpose().matrix()*alpha).array()*offset;
+    ArrayXd thirdpart_dx = sigma_dx/sigma * sqoffset;
+    ArrayXd thirdpart_dy = sigma_dy/sigma * sqoffset;
+    dX.resize(X.rows(), 3);
+    dX.col(0) = -1.0f*offset*exppart/(sigma*sqrtsigma);
+    dX.col(1) = exppart*(-sigma_dx + secondpart_dx + thirdpart_dx);
+    dX.col(2) = exppart*(-sigma_dy + secondpart_dy + thirdpart_dy);
+}
+
+void sparse_gp::compute_derivatives(MatrixXd& dX, const MatrixXd& X, const VectorXd& y)
+{
+    dX.resize(X.rows(), 3);
+    Vector3d dx;
+    for (int i = 0; i < X.rows(); ++i) {
+        likelihood_dx(dx, X.row(i).transpose(), y(i));
+        dX.row(i) = dx.transpose();
+    }
+}
+
 // THIS NEEDS SOME SPEEDUP, PROBABLY BY COMPUTING SEVERAL AT ONCE
 // the differential likelihood with respect to x and y
 void sparse_gp::likelihood_dx(Vector3d& dx, const Vector2d& x, double y)
@@ -428,17 +488,20 @@ void sparse_gp::likelihood_dx(Vector3d& dx, const Vector2d& x, double y)
     double sigma = s20 + k.transpose()*C*k;
     double sqrtsigma = sqrt(sigma);
     double offset = y - k.transpose()*alpha;
-    double exppart = exp(-0.5f/sigma * offset*offset);
-    Array2d firstpart = -0.5f*sigma_dx / (sigma*sqrtsigma);
-    Array2d secondpart = 0.5f/sqrtsigma*(2.0f/sqrtsigma*(k_dx.transpose()*alpha).array()*offset);// +
-    Array2d thirdpart = 0.5f/sqrtsigma*(sigma_dx / (sigma*sigma) * offset*offset);
+    double exppart = 0.5/(sigma*sqrtsigma)*exp(-0.5f/sigma * offset*offset);
+    Array2d firstpart = -sigma_dx;
+    Array2d secondpart = (2.0f*(k_dx.transpose()*alpha).array()*offset);// +
+    Array2d thirdpart = sigma_dx/sigma * offset*offset;
     dx(0) = -1.0f/(sigma*sqrtsigma)*offset*exppart;
     dx.tail<2>() = exppart*(firstpart + secondpart + thirdpart);
     if (isnan(dx(0)) || isnan(dx(1)) || isnan(dx(2))) {
         breakpoint();
     }
-    //dx(0) = -offset;
-    //dx.tail<2>().setZero();
+
+//    VectorXd k;
+//    construct_covariance(k, x, BV);
+//    dx(0) = k.transpose()*alpha - y;
+//    dx.tail<2>().setZero();
 }
 
 // kernel function, to be separated out later

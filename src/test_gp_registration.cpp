@@ -43,7 +43,7 @@ void asynch_visualizer::run_visualizer()
     if (display_centers) {
         pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> point_cloud_color_handler(display_centers, 255, 0, 0);
         viewer->addPointCloud(display_centers, point_cloud_color_handler, "registered");
-        viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(display_centers, display_normals, 50, 1e-2f, "normals");
+        viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(display_centers, display_normals, 50, 1e-3f, "normals");
     }
 
     // Starting visualizer
@@ -59,7 +59,7 @@ void asynch_visualizer::run_visualizer()
             viewer->removePointCloud("normals");
             pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> point_cloud_color_handler(display_centers, 255, 0, 0);
             viewer->addPointCloud(display_centers, point_cloud_color_handler, "registered");
-            viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(display_centers, display_normals, 50, 1e-2f, "normals");
+            viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(display_centers, display_normals, 50, 1e-3f, "normals");
         }
         viewer->spinOnce(100);
         boost::this_thread::sleep(boost::posix_time::microseconds (100000));
@@ -85,10 +85,11 @@ int main(int argc, char** argv)
     }
     pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters(new pcl::PointCloud<pcl::PointXYZ>());
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>());
-    gp_registration comp(cloud, 0.40f, 40, ncenters, normals);
+    gp_registration comp(cloud, 0.40f, 30, ncenters, normals);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr other_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
     //filename = "../data/room_scan2.pcd";
-    filename = "/home/nbore/Data/rgbd_dataset_freiburg1_room/pointclouds/1305031911.097196.pcd";
+    //filename = "/home/nbore/Data/rgbd_dataset_freiburg1_room/pointclouds/1305031911.097196.pcd";
+    filename = "/home/nbore/Data/rgbd_dataset_freiburg1_room/pointclouds/1305031914.133245.pcd";
     if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (filename, *other_cloud) == -1)
     {
         std::cout << "Couldn't read file " << filename << std::endl;
