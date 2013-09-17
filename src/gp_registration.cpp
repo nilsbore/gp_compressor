@@ -3,9 +3,8 @@
 using namespace Eigen;
 
 gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
-                                 pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters,
-                                 pcl::PointCloud<pcl::Normal>::Ptr normals) :
-    gp_compressor(cloud, res, sz), step(1e-3f), ncenters(ncenters), normals(normals), P(6)
+                                 asynch_visualizer* vis) :
+    gp_compressor(cloud, res, sz), step(1e-3f), vis(vis), P(6)
 {
     /*covariance.setZero();
     mean1.setZero();
@@ -67,15 +66,15 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
 
 bool gp_registration::registration_done()
 {
-    return (delta.head<3>().norm() < 0.5 && delta.tail<3>().norm() < 0.5);
+    return (delta.head<3>().norm() < 0.2 && delta.tail<3>().norm() < 0.2);
 }
 
 void gp_registration::registration_step()
 {
     Matrix3d R;
     Vector3d t;
-    //octree.update_random_points(1.0f);
-    octree.update_points();
+    octree.update_random_points(0.1f);
+    //octree.update_points();
     compute_transformation();
     gradient_step(R, t);
     R_cloud = R_cloud*R; // add to total rotation
@@ -111,9 +110,11 @@ void gp_registration::get_local_points(MatrixXd& points, int* occupied_indices, 
 
 void gp_registration::compute_transformation()
 {
-    if (ncenters) {
-        ncenters->resize(cloud->size());
-        normals->resize(cloud->size());
+    if (vis != NULL) {
+        vis->lock();
+        vis->display_centers->resize(cloud->size());
+        vis->display_normals->resize(cloud->size());
+        vis->unlock();
     }
     double radius = sqrt(3.0f)/2.0f*res; // radius of the sphere encompassing the voxels
 
@@ -182,16 +183,18 @@ void gp_registration::compute_transformation()
             ++added_derivatives;
         }
 
-        if (ncenters) {
+        if (vis != NULL) {
+            vis->lock();
             for (int m = 0; m < points.cols(); ++m) {
-                ncenters->at(k).x = points(0, m);
-                ncenters->at(k).y = points(1, m);
-                ncenters->at(k).z = points(2, m);
-                normals->at(k).normal_x = 1e-0f*dX(m, 0);
-                normals->at(k).normal_y = 1e-0f*dX(m, 1);
-                normals->at(k).normal_z = 1e-0f*dX(m, 2);
+                vis->display_centers->at(k).x = points(0, m);
+                vis->display_centers->at(k).y = points(1, m);
+                vis->display_centers->at(k).z = points(2, m);
+                vis->display_normals->at(k).normal_x = dX(m, 0);
+                vis->display_normals->at(k).normal_y = dX(m, 1);
+                vis->display_normals->at(k).normal_z = dX(m, 2);
                 ++k;
             }
+            vis->unlock();
         }
 
         // get derivatives of points from gp
@@ -200,9 +203,12 @@ void gp_registration::compute_transformation()
         //std::cout << "Index search: " << index_search.size() << std::endl;
     }
     octree.remove_just_points(); // not sure if this has any effect, removes points but not leaves
-    if (ncenters) {
-        ncenters->resize(k);
-        normals->resize(k);
+    if (vis != NULL) {
+        vis->lock();
+        vis->display_centers->resize(k);
+        vis->display_normals->resize(k);
+        vis->has_transformed = true;
+        vis->unlock();
     }
     delete[] occupied_indices;
 

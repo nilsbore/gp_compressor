@@ -2,6 +2,7 @@
 #define GP_REGISTRATION_H
 
 #include "gp_compressor.h"
+#include "asynch_visualizer.h"
 #include <Eigen/Dense>
 
 class gp_registration : public gp_compressor
@@ -22,8 +23,9 @@ private:
     Eigen::Vector3d mean2;
     double accumulated_weight;
     Eigen::Matrix3d covariance;*/
-    pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters;
-    pcl::PointCloud<pcl::Normal>::Ptr normals;
+    //pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters;
+    //pcl::PointCloud<pcl::Normal>::Ptr normals;
+    asynch_visualizer* vis;
     void add_derivatives(const Eigen::MatrixXd& X, const Eigen::MatrixXd& dX);
     //void get_transformation(Eigen::Matrix3d& R, Eigen::Vector3d& t);
     void compute_transformation();
@@ -38,8 +40,7 @@ public:
     void registration_step();
     void get_cloud_transformation(Eigen::Matrix3d& R, Eigen::Vector3d& t);
     gp_registration(pointcloud::ConstPtr cloud, double res = 0.1f, int sz = 10,
-                    pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters = pcl::PointCloud<pcl::PointXYZ>::Ptr(),
-                    pcl::PointCloud<pcl::Normal>::Ptr normals = pcl::PointCloud<pcl::Normal>::Ptr());
+                    asynch_visualizer* vis = NULL);
 };
 
 #endif // GP_REGISTRATION_H
