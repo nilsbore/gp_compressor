@@ -11,6 +11,7 @@ private:
     pthread_mutex_t mutex;
 public:
     bool has_transformed;
+    bool map_has_transformed;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr display_cloud;
     pcl::PointCloud<pcl::PointXYZ>::Ptr display_centers;
     pcl::PointCloud<pcl::Normal>::Ptr display_normals;
@@ -22,6 +23,7 @@ public:
         display_centers(display_centers), display_normals(display_normals)
     {
         has_transformed = false;
+        map_has_transformed = true;
         if (pthread_mutex_init(&mutex, NULL) == 0) {
             std::cout << "mutex init failed" << std::endl;
         }

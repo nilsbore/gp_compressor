@@ -37,7 +37,7 @@ int main(int argc, char** argv)
         std::cout << "Couldn't read file " << filename << std::endl;
         return 0;
     }
-    viewer.display_cloud = comp.load_compressed();;
+    viewer.display_cloud = comp.load_compressed();
     comp.add_cloud(other_cloud);
     pthread_t my_viewer_thread;
     pthread_create(&my_viewer_thread, NULL, viewer_thread, &viewer);

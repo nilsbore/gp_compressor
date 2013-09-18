@@ -146,6 +146,7 @@ void gp_compressor::train_processes()
         }
         gps[i].add_measurements(X, y);
         to_be_added[i].clear();
+        S[i].clear(); // DEBUG FOR MAPPING!
     }
     /*leaf_iterator iter1(octree);
     while (*++iter1) {
@@ -197,6 +198,9 @@ void gp_compressor::project_cloud()
 
         octree.radiusSearch(center, radius, index_search, distances); // search octree
         //leaf->reset(); // remove references in octree
+        if (index_search.size() == 0) { // MAPPING DEBUG
+            continue;
+        }
         MatrixXd points(4, index_search.size()); // 4 because of compute rotation
         points.row(3).setOnes();
         Matrix<short, Dynamic, Dynamic> colors(3, index_search.size());
@@ -245,12 +249,12 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
     VectorXd V_star;
     double sum_squared_error = 0;
     for (int i = 0; i < n; ++i) {
-        if (S[i].size() == 0) {
+        if (gps[i].size() == 0) { // S[i].size() MAPPING DEBUG
             continue;
         }
 
         // DEBUGGING, computing rms error
-        X_star.resize(S[i].size(), 2);
+        /*X_star.resize(S[i].size(), 2);
         f.resize(S[i].size());
         int m = 0;
         for (const Vector3d& p : S[i]) {
@@ -260,7 +264,7 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
         }
         data_points += S[i].size();
         gps[i].predict_measurements(f_star, X_star, V_star);
-        sum_squared_error += (f - f_star).squaredNorm();
+        sum_squared_error += (f - f_star).squaredNorm();*/
         // DEBUGGING, computing rms error
 
         X_star.resize(sz*sz, 2);
