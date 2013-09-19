@@ -24,7 +24,7 @@ int main(int argc, char** argv)
     pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters(new pcl::PointCloud<pcl::PointXYZ>());
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>());
     asynch_visualizer viewer(ncenters, normals);
-    gp_mapping comp(cloud, 0.40f, 30, &viewer);
+    gp_mapping comp(cloud, 0.30f, 30, &viewer);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr other_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
     filename = "/home/nbore/Data/rgbd_dataset_freiburg1_room/pointclouds/1305031911.097196.pcd";
     //filename = "/home/nbore/Data/rgbd_dataset_freiburg1_room/pointclouds/1305031914.133245.pcd";
@@ -38,9 +38,15 @@ int main(int argc, char** argv)
     pthread_create(&my_viewer_thread, NULL, viewer_thread, &viewer);
     comp.add_cloud(other_cloud);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr display_cloud = comp.load_compressed();
+    Eigen::Matrix3d R;
+    Eigen::Vector3d t;
+    comp.get_cloud_transformation(R, t);
+    comp.transform_pointcloud(other_cloud, R, t);
     viewer.lock();
-    viewer.display_cloud->swap(*display_cloud);
-    //viewer.display_cloud = display_cloud;
+    //viewer.display_cloud->swap(*display_cloud);
+    viewer.display_cloud = display_cloud;
+    viewer.display_other = other_cloud;
+    viewer.other_has_transformed = true;
     viewer.map_has_transformed = true;
     viewer.unlock();
     pthread_join(my_viewer_thread, NULL);

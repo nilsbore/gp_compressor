@@ -13,6 +13,7 @@ gp_compressor::gp_compressor(pointcloud::ConstPtr ncloud, double res, int sz) :
     cloud(new pointcloud()), octree(res), res(res), sz(sz)
 {
     cloud->insert(cloud->begin(), ncloud->begin(), ncloud->end());
+    iteration = 0;
 }
 
 void gp_compressor::save_compressed(const std::string& name)
@@ -134,6 +135,7 @@ void gp_compressor::train_processes()
         }
         i = leaf->gp_index;
         if (to_be_added[i].size() == 0) {
+            S[i].clear(); // DEBUG FOR MAPPING!
             continue;
         }
         X.resize(to_be_added[i].size(), 2);
@@ -199,6 +201,7 @@ void gp_compressor::project_cloud()
         octree.radiusSearch(center, radius, index_search, distances); // search octree
         //leaf->reset(); // remove references in octree
         if (index_search.size() == 0) { // MAPPING DEBUG
+            ++i;
             continue;
         }
         MatrixXd points(4, index_search.size()); // 4 because of compute rotation
@@ -225,7 +228,10 @@ void gp_compressor::project_cloud()
 
 gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
 {
-    int n = S.size();
+    if (iteration == 0) {
+        iteration = gps.size();
+    }
+    int n = gps.size();
     pointcloud::Ptr ncloud(new pointcloud);
     pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
@@ -292,7 +298,7 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
             ncloud->at(counter).y = pt(1);
             ncloud->at(counter).z = pt(2);
             int col = i % 3;
-            if (col == 0) {
+            /*if (col == 0) {
                 ncloud->at(counter).g = 255;
             }
             else if (col == 1) {
@@ -301,6 +307,15 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
             else {
                 ncloud->at(counter).r = 255;
                 ncloud->at(counter).b = 255;
+            }*/
+            if (i < iteration) {
+                ncloud->at(counter).g = 255;
+            }
+            else {
+                ncloud->at(counter).b = 255;
+                //std::cout << "new process" << std::endl;
+                //std::cout << "S.size(): " << S[i].size() << std::endl;
+                // one has only one training point for some reason, BUG!
             }
             ++counter;
         }
@@ -317,6 +332,7 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
     /*if (display) {
         display_cloud(ncloud, ncenters, normals);
     }*/
+    iteration = gps.size();
     return ncloud;
 }
 

@@ -4,7 +4,7 @@
 #include <stdio.h> // until we removed the old debug printouts
 #include <iostream>
 
-#define DEBUG 1
+#define DEBUG 0
 
 using namespace Eigen;
 

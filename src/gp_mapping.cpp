@@ -11,6 +11,7 @@ gp_mapping::gp_mapping(pointcloud::ConstPtr cloud, double res, int sz, asynch_vi
 // or just use the old method, make it public
 void gp_mapping::add_cloud(pointcloud::ConstPtr other_cloud)
 {
+    //int n = gps.size();
     // insert new point cloud
     gp_registration::add_cloud(other_cloud);
     do { // do registration until convergence
@@ -18,6 +19,13 @@ void gp_mapping::add_cloud(pointcloud::ConstPtr other_cloud)
     } while (!registration_done());
     // add point cloud to the map
     insert_into_map();
+
+    /*S.resize(n); // increase number of patches
+    to_be_added.resize(n);
+    W.conservativeResize(sz*sz, n);
+    rotations.resize(n);
+    means.resize(n);
+    gps.resize(n);*/
 }
 
 void gp_mapping::insert_into_map()
@@ -57,6 +65,9 @@ void gp_mapping::insert_into_map()
         is_new = (leaf->gp_index == -1);
         if (is_new) {
             leaf->gp_index = i;
+            std::cout << "new number" << std::endl;
+            std::cout << "S[i].size: " << S[i].size() << std::endl;
+            std::cout << "to_be_added[i].size: " << to_be_added[i].size() << std::endl;
             ++i;
         }
         octree.radiusSearch(center, radius, index_search, distances); // search octree
@@ -70,6 +81,9 @@ void gp_mapping::insert_into_map()
             std::cout << "Added to old one" << std::endl;
             continue;
         }
+        if (!is_new && gps[leaf->gp_index].size() == 0) { // DEBUG
+            //continue; // this adds more strange processes for some reason
+        }
         if (to_be_added[leaf->gp_index].size() < min_nbr) {
             continue;
         }
@@ -82,8 +96,8 @@ void gp_mapping::insert_into_map()
         mid = center.getVector3fMap().cast<double>();
         transform_to_new(mid, R, leaf->gp_index, index_search, occupied_indices);
         std::cout << "Added new one" << std::endl;
-        rotations[i] = R;
-        means[i] = mid;
+        rotations[leaf->gp_index] = R;
+        means[leaf->gp_index] = mid;
     }
     octree.remove_just_points();
     delete[] occupied_indices;
@@ -189,6 +203,6 @@ void gp_mapping::train_processes()
             ++m;
         }
         gps[i].add_measurements(X, y);
-        S[i].clear();
+        //S[i].clear();
     }
 }

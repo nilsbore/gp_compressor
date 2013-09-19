@@ -40,7 +40,15 @@ void asynch_visualizer::run_visualizer()
             viewer->addPointCloud<pcl::PointXYZRGB>(display_cloud, rgb, "cloud");
             viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE,
                                                      1, "cloud");
-            map_has_transformed = true;
+            map_has_transformed = false;
+        }
+        if (other_has_transformed) {
+            viewer->removePointCloud("other");
+            pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(display_other);
+            viewer->addPointCloud<pcl::PointXYZRGB>(display_other, rgb, "other");
+            viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE,
+                                                     1, "other");
+            other_has_transformed = false;
         }
         unlock();
         viewer->spinOnce(100);

@@ -12,9 +12,11 @@ private:
 public:
     bool has_transformed;
     bool map_has_transformed;
+    bool other_has_transformed;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr display_cloud;
     pcl::PointCloud<pcl::PointXYZ>::Ptr display_centers;
     pcl::PointCloud<pcl::Normal>::Ptr display_normals;
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr display_other;
     void lock();
     void unlock();
     void run_visualizer();
@@ -24,7 +26,8 @@ public:
     {
         has_transformed = false;
         map_has_transformed = true;
-        if (pthread_mutex_init(&mutex, NULL) == 0) {
+        other_has_transformed = false;
+        if (pthread_mutex_init(&mutex, NULL) != 0) {
             std::cout << "mutex init failed" << std::endl;
         }
         //pthread_mutex_lock(&mutex);

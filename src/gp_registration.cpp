@@ -62,6 +62,8 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
     cloud->clear();
     cloud->insert(cloud->end(), other_cloud->begin(), other_cloud->end());
     step_nbr = 0;
+    R_cloud.setIdentity();
+    t_cloud.setZero();
 }
 
 bool gp_registration::registration_done()
@@ -77,8 +79,8 @@ void gp_registration::registration_step()
     //octree.update_points();
     compute_transformation();
     gradient_step(R, t);
-    R_cloud = R_cloud*R; // add to total rotation
-    t_cloud += R_cloud*t; // add to total translation
+    R_cloud = R*R_cloud; // add to total rotation
+    t_cloud += t; // add to total translation
     transform_pointcloud(cloud, R, t);
     std::cout << "Doing step number " << step_nbr << std::endl;
     std::cout << "P derivative " << delta << std::endl;

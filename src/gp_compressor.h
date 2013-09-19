@@ -16,6 +16,7 @@ public:
     typedef pcl::PointCloud<point> pointcloud;
     typedef pcl::octree::OctreePointCloudSearch<point, gp_leaf>::OctreeT::LeafNodeIterator leaf_iterator;
 protected:
+    int iteration;
     pointcloud::Ptr cloud; // the input pointcloud with RGB color information
     gp_octree octree;
     double res;

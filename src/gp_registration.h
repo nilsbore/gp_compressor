@@ -30,11 +30,11 @@ private:
     //void get_transformation(Eigen::Matrix3d& R, Eigen::Vector3d& t);
     void compute_transformation();
     void get_local_points(Eigen::MatrixXd& points, int* occupied_indices, const std::vector<int>& index_search, int i);
-    void transform_pointcloud(pcl::PointCloud<pcl::PointXYZ>::Ptr c, const Eigen::Matrix3d& R, const Eigen::Vector3d& t);
-    void transform_pointcloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr c, const Eigen::Matrix3d& R, const Eigen::Vector3d& t);
     void get_transform_jacobian(Eigen::MatrixXd& J, const Eigen::Vector3d& x);
     void gradient_step(Eigen::Matrix3d& R, Eigen::Vector3d& t);
 public:
+    void transform_pointcloud(pcl::PointCloud<pcl::PointXYZ>::Ptr c, const Eigen::Matrix3d& R, const Eigen::Vector3d& t);
+    void transform_pointcloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr c, const Eigen::Matrix3d& R, const Eigen::Vector3d& t);
     void add_cloud(pointcloud::ConstPtr other_cloud);
     bool registration_done();
     void registration_step();
