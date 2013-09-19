@@ -203,6 +203,6 @@ void gp_mapping::train_processes()
             ++m;
         }
         gps[i].add_measurements(X, y);
-        //S[i].clear();
+        S[i].clear();
     }
 }

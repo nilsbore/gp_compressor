@@ -313,9 +313,6 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
             }
             else {
                 ncloud->at(counter).b = 255;
-                //std::cout << "new process" << std::endl;
-                //std::cout << "S.size(): " << S[i].size() << std::endl;
-                // one has only one training point for some reason, BUG!
             }
             ++counter;
         }
