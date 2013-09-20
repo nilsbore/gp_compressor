@@ -13,6 +13,8 @@ gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
     project_cloud();
     std::cout << "Number of patches: " << S.size() << std::endl;
     train_processes();
+    R_cloud.setIdentity();
+    t_cloud.setZero();
 }
 
 void gp_registration::get_cloud_transformation(Matrix3d& R, Vector3d& t)
@@ -62,8 +64,6 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
     cloud->clear();
     cloud->insert(cloud->end(), other_cloud->begin(), other_cloud->end());
     step_nbr = 0;
-    R_cloud.setIdentity();
-    t_cloud.setZero();
 }
 
 bool gp_registration::registration_done()
