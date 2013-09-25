@@ -10,7 +10,7 @@ using namespace Eigen;
 
 sparse_gp::sparse_gp(int capacity, double s0, double sigmaf, double l) :
     capacity(capacity), s20(s0), sigmaf_sq(sigmaf), l_sq(l),
-    eps_tol(1e-6f), current_size(0), total_count(0)
+    eps_tol(1e-5f), current_size(0), total_count(0) // 1e-6f
 {
 
 }
