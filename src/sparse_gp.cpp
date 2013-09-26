@@ -20,6 +20,7 @@ int sparse_gp::size()
     return current_size;
 }
 
+// shuffle the data so that all neighbouring points aren't added at once
 void sparse_gp::shuffle(std::vector<int>& ind, int n)
 {
     ind.resize(n);
@@ -106,7 +107,7 @@ void sparse_gp::add(const VectorXd& X, double y)
 
         //Update scalars
         //page 33 - Assumes Gaussian noise, no assumptions on kernel?
-        double r = -1.0f / (s20 + s2); // should check these ones out
+        double r = -1.0f / (s20 + s2);
         //printf("out %d m %d r %f\n",out.Nrows(),m.Ncols(),r);
         double q = -r*(y - m);
 
@@ -199,7 +200,7 @@ void sparse_gp::add(const VectorXd& X, double y)
         //Delete for geometric reasons - Loop?
         double minscore = 0, score;
         int minloc = -1;
-        while(minscore < 1e-9f && current_size > 1) {
+        while (minscore < 1e-9f && current_size > 1) {
             for (int i = 0; i < current_size; i++) {
                 score = 1.0f/Q(i, i);
                 if (i == 0 || score < minscore) {
