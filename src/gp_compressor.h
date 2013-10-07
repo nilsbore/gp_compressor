@@ -8,6 +8,7 @@
 #include <list>
 #include "sparse_gp.h"
 #include "gp_octree.h"
+#include "rbf_kernel.h"
 
 class gp_compressor
 {
@@ -35,7 +36,7 @@ protected:
     //Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> RGB;
     // the masks showing where in the patches there are observations
     Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> W;
-    std::vector<sparse_gp> gps;
+    std::vector<sparse_gp<rbf_kernel> > gps;
 
     void compute_rotation(Eigen::Matrix3d& R, const Eigen::MatrixXd& points);
     void project_points(Eigen::Vector3d& center, const Eigen::Matrix3d& R, Eigen::MatrixXd& points,

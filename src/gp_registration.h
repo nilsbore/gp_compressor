@@ -10,7 +10,7 @@ class gp_registration : public gp_compressor
 public:
     using gp_compressor::point;
     using gp_compressor::pointcloud;
-private:
+protected:
     double ls;
     Eigen::RowVectorXd P;
     Eigen::VectorXd delta;

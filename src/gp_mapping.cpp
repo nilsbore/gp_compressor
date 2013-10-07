@@ -14,6 +14,7 @@ void gp_mapping::add_cloud(pointcloud::ConstPtr other_cloud)
     //int n = gps.size();
     // insert new point cloud
     gp_registration::add_cloud(other_cloud);
+    transform_pointcloud(cloud, R_cloud, t_cloud);
     do { // do registration until convergence
         registration_step();
     } while (!registration_done());

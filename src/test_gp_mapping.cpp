@@ -48,12 +48,10 @@ int main(int argc, char** argv)
         std::cout << "Couldn't read first file " << files[0] << std::endl;
         return 0;
     }
-    gp_mapping comp(cloud, 0.20f, 30, &viewer);
+    gp_mapping comp(cloud, 0.20f, 15, &viewer);
     viewer.display_cloud = comp.load_compressed();
-    Eigen::Matrix3d R;
-    R.setIdentity();
-    Eigen::Vector3d t;
-    t.setZero();
+    //Eigen::Matrix3d R;
+    //Eigen::Vector3d t;
     pthread_t my_viewer_thread;
     pthread_create(&my_viewer_thread, NULL, viewer_thread, &viewer);
     int i = 0;
@@ -72,9 +70,9 @@ int main(int argc, char** argv)
             std::cout << "Couldn't read file " << file << std::endl;
             return 0;
         }
-        comp.transform_pointcloud(other_cloud, R, t);
+        //comp.transform_pointcloud(other_cloud, R, t);
         comp.add_cloud(other_cloud);
-        comp.get_cloud_transformation(R, t);
+        //comp.get_cloud_transformation(R, t);
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr display_cloud = comp.load_compressed();
         //comp.transform_pointcloud(other_cloud, R, t);
         viewer.lock();
