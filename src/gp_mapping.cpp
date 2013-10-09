@@ -146,9 +146,11 @@ void gp_mapping::transform_to_new(Vector3d& center, const Matrix3d& R, int i,
     int ind;
     int x, y;
     double mn = 0;
+    int last_inds;
     int m = 0;
     for (const Vector3d& glob : to_be_added[i]) {
-        if (occupied_indices[index_search[m]]) { // have start point of new indices?
+        last_inds = index_search.size() - to_be_added[i].size() + m;
+        if (last_inds >= 0 && occupied_indices[index_search[last_inds]]) { // have start point of new indices?
             ++m;
             continue;
         }

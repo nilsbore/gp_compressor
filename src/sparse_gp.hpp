@@ -389,17 +389,6 @@ double sparse_gp<Kernel, Noise>::log_prob(const VectorXd& X_star, const VectorXd
     return lp;
 }
 
-// the differential kernel vector with respect to x
-/*void sparse_gp::kernel_dx(MatrixXd& k_dx, const Vector2d& x)
-{
-    k_dx.resize(BV.cols(), 2);
-    RowVector2d offset;
-    for (int i = 0; i < BV.cols(); ++i) {
-        offset =  (x - BV.col(i)).transpose();
-        k_dx.row(i) = -sigmaf_sq/l_sq*offset*exp(-0.5f/l_sq*offset.squaredNorm());
-    }
-}*/
-
 template <class Kernel, class Noise>
 void sparse_gp<Kernel, Noise>::compute_likelihoods(VectorXd& l, const MatrixXd& X, const VectorXd& y)
 {
@@ -430,34 +419,6 @@ double sparse_gp<Kernel, Noise>::likelihood(const Vector2d& x, double y)
     }
     return 1.0/sqrt(2.0*M_PI*sigma)*exp(-0.5/sigma*(y - mu)*(y - mu));
 }
-
-/*void sparse_gp::kernels_fast(ArrayXXd& K_dx, ArrayXXd& K_dy, const MatrixXd& X)
-{
-    K_dx.resize(BV.cols(), X.cols());
-    K_dy.resize(BV.cols(), X.cols());
-    MatrixXd offset;
-    ArrayXd exppart;
-    ArrayXd temp;
-    for (int i = 0; i < BV.cols(); ++i) {
-        offset = X - BV.col(i).replicate(1, X.cols());
-        temp = offset.colwise().squaredNorm();
-        exppart = -sigmaf_sq/l_sq*(-0.5/l_sq*temp).exp();
-        K_dx.row(i) = offset.row(0).array()*exppart.transpose();
-        K_dy.row(i) = offset.row(1).array()*exppart.transpose();
-    }
-}
-
-void sparse_gp::construct_covariance_fast(MatrixXd& K, const MatrixXd& X)
-{
-    K.resize(BV.cols(), X.cols());
-    MatrixXd rep;
-    ArrayXd temp;
-    for (int i = 0; i < BV.cols(); ++i) {
-        rep = BV.col(i).replicate(1, X.cols()); // typically more cols in X than in Xb
-        temp = (X - rep).colwise().squaredNorm();
-        K.row(i) = sigmaf_sq*(-0.5f/l_sq*temp).exp();
-    }
-}*/
 
 template <class Kernel, class Noise>
 void sparse_gp<Kernel, Noise>::compute_derivatives_fast(MatrixXd& dX, const MatrixXd& X, const VectorXd& y)

@@ -4,7 +4,7 @@
 #include <Eigen/Dense>
 #include <vector>
 
-template <class Kernel, class Noise = std::vector<int> >
+template <class Kernel, class Noise>
 class sparse_gp
 {
 public:
@@ -30,13 +30,9 @@ private:
     void delete_bv(int loc);
     double predict(const Eigen::VectorXd& X_star, double& sigma, bool conf);
     void construct_covariance(Eigen::VectorXd& K, const Eigen::Vector2d& X, const Eigen::MatrixXd& Xv);
-    //double kernel_function(const Eigen::Vector2d& xi, const Eigen::Vector2d& xj);
     void shuffle(std::vector<int>& ind, int n);
-    //void kernel_dx(Eigen::MatrixXd& k_dx, const Eigen::Vector2d& x);
     void likelihood_dx(Eigen::Vector3d& dx, const Eigen::Vector2d& x, double y);
     double likelihood(const Eigen::Vector2d& x, double y);
-    //void kernels_fast(Eigen::ArrayXXd& K_dx, Eigen::ArrayXXd& K_dy, const Eigen::MatrixXd& X);
-    //void construct_covariance_fast(Eigen::MatrixXd& K, const Eigen::MatrixXd& X);
 public:
     void train_parameters(const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
     void compute_derivatives_fast(Eigen::MatrixXd& dX, const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
