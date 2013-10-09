@@ -50,6 +50,7 @@ public:
     gp_compressor(pointcloud::ConstPtr ncloud, double res = 0.1f, int sz = 10);
     void save_compressed(const std::string& name);
     pointcloud::Ptr load_compressed();
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 #endif // GP_COMPRESSOR_H

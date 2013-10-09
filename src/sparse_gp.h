@@ -4,11 +4,12 @@
 #include <Eigen/Dense>
 #include <vector>
 
-template <class Kernel>
+template <class Kernel, class Noise = std::vector<int> >
 class sparse_gp
 {
 public:
     typedef Kernel kernel_type;
+    typedef Noise noise_type;
 private:
     // parameters of covariance function:
     double sigmaf_sq;

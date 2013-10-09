@@ -69,6 +69,7 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
 bool gp_registration::registration_done()
 {
     return (delta.head<3>().norm() < 0.2 && delta.tail<3>().norm() < 0.2);
+    //return (delta.head<3>().norm() < 0.4 && delta.tail<3>().norm() < 0.4);
 }
 
 void gp_registration::registration_step()

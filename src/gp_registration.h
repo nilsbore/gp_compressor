@@ -19,12 +19,6 @@ protected:
     Eigen::Matrix3d R_cloud;
     Eigen::Vector3d t_cloud;
     int step_nbr;
-    /*Eigen::Vector3d mean1;
-    Eigen::Vector3d mean2;
-    double accumulated_weight;
-    Eigen::Matrix3d covariance;*/
-    //pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters;
-    //pcl::PointCloud<pcl::Normal>::Ptr normals;
     asynch_visualizer* vis;
     void add_derivatives(const Eigen::MatrixXd& X, const Eigen::MatrixXd& dX);
     //void get_transformation(Eigen::Matrix3d& R, Eigen::Vector3d& t);
@@ -41,6 +35,7 @@ public:
     void get_cloud_transformation(Eigen::Matrix3d& R, Eigen::Vector3d& t);
     gp_registration(pointcloud::ConstPtr cloud, double res = 0.1f, int sz = 10,
                     asynch_visualizer* vis = NULL);
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 #endif // GP_REGISTRATION_H
