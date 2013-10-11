@@ -15,6 +15,7 @@ private:
     double sigmaf_sq;
     double l_sq;
     kernel_type kernel;
+    noise_type noise;
     //private:
     int total_count; // How many points have I seen?
     int current_size; // how many inducing points do I have

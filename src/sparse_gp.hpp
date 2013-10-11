@@ -24,7 +24,7 @@ using namespace Eigen;
 
 template <class Kernel, class Noise>
 sparse_gp<Kernel, Noise>::sparse_gp(int capacity, double s0) :
-    kernel(), capacity(capacity), s20(s0),
+    kernel(), noise(s0), capacity(capacity), s20(s0),
     eps_tol(1e-5f), current_size(0), total_count(0) // 1e-6f
 {
 
@@ -128,9 +128,11 @@ void sparse_gp<Kernel, Noise>::add(const VectorXd& X, double y)
 
         //Update scalars
         //page 33 - Assumes Gaussian noise, no assumptions on kernel?
-        double r = -1.0f / (s20 + s2);
+        //double r = -1.0f / (s20 + s2);
+        double r = noise.dx2_ln(y, m, s2); // -1.0f / (s20 + s2);
         //printf("out %d m %d r %f\n",out.Nrows(),m.Ncols(),r);
-        double q = -r*(y - m);
+        //double q = -r*(y - m);
+        double q = noise.dx_ln(y, m, s2); // -r*(y - m);
 
         //projection onto current BV
         VectorXd e_hat = Q*k;//Appendix G, section c
