@@ -39,7 +39,7 @@ void gp_mapping::insert_into_map()
     S.resize(n); // increase number of patches
     to_be_added.resize(n);
     W.conservativeResize(sz*sz, n);
-    free.conservativeResize(sz*sz, n);
+    //free.conservativeResize(sz*sz, n);
     rotations.resize(n);
     means.resize(n);
 
@@ -50,7 +50,7 @@ void gp_mapping::insert_into_map()
     std::vector<float> distances; // same, distances
     Eigen::Matrix3d R;
     Vector3d mid;
-    int* occupied_indices = new int[cloud->size()](); // maybe save this for later? just one bool
+    int* occupied_indices = new int[cloud->width*cloud->height](); // maybe save this for later? just one bool
     //int gp_indices = new int[cloud->size()]; // can be used instead of occupied_indices
 
     bool is_new;
@@ -204,7 +204,7 @@ void gp_mapping::transform_to_new(Vector3d& center, const Matrix3d& R, int i,
     int m = 0;
     for (const Vector3d& glob : to_be_added[i]) {
         last_inds = index_search.size() - to_be_added[i].size() + m;
-        if (last_inds >= 0 && occupied_indices[index_search[last_inds]]) { // have start point of new indices?
+        if (last_inds < 0 || occupied_indices[index_search[last_inds]]) { // have start point of new indices?
             ++m;
             continue;
         }
@@ -214,7 +214,11 @@ void gp_mapping::transform_to_new(Vector3d& center, const Matrix3d& R, int i,
             continue;
         }
         mn += loc(0);
-        occupied_indices[index_search[m]] = 1;
+        /*std::cout << index_search.size() << std::endl;
+        std::cout << to_be_added[i].size() << std::endl;
+        std::cout << m << std::endl;
+        std::cout << last_inds << std::endl;*/
+        occupied_indices[index_search[last_inds]] = 1;
         x = int(double(sz)*(loc(1)/res+0.5f)); // transforming into image patch coordinates
         y = int(double(sz)*(loc(2)/res+0.5f));
         ind = sz*x + y;

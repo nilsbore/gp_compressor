@@ -5,6 +5,7 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/common/utils.h>
 #include <pcl/common/transforms.h>
+#include <pcl/filters/voxel_grid.h>
 #include <boost/thread/thread.hpp>
 #include "gp_mapping.h"
 #include "asynch_visualizer.h"
@@ -69,8 +70,13 @@ int main(int argc, char** argv)
             std::cout << "Couldn't read file " << file << std::endl;
             return 0;
         }
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
+        pcl::VoxelGrid<pcl::PointXYZRGB> sor;
+        sor.setInputCloud(other_cloud);
+        sor.setLeafSize(0.01f, 0.01f, 0.01f);
+        sor.filter(*filtered_cloud);
         //comp.transform_pointcloud(other_cloud, R, t);
-        comp.add_cloud(other_cloud);
+        comp.add_cloud(filtered_cloud);
         //comp.get_cloud_transformation(R, t);
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr display_cloud = comp.load_compressed();
         //comp.transform_pointcloud(other_cloud, R, t);

@@ -74,8 +74,8 @@ void gp_registration::registration_step()
 {
     Matrix3d R;
     Vector3d t;
-    octree.update_random_points(0.1f);
-    //octree.update_points();
+    //octree.update_random_points(0.1f);
+    octree.update_points();
     compute_transformation();
     gradient_step(R, t);
     R_cloud = R*R_cloud; // add to total rotation
