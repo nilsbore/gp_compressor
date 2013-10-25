@@ -16,6 +16,7 @@ private:
     void transform_to_new(Eigen::Vector3d& center, const Eigen::Matrix3d& R, int i,
                           const std::vector<int>& index_search, int* occupied_indices);
     void train_processes(); // could probably be replaced in old one instead
+    void train_classification(int* gp_indices);
 public:
     void add_cloud(pointcloud::ConstPtr other_cloud);
     gp_mapping(pointcloud::ConstPtr cloud, double res = 0.1f, int sz = 10,

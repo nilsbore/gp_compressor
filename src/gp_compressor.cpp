@@ -14,6 +14,8 @@ gp_compressor::gp_compressor(pointcloud::ConstPtr ncloud, double res, int sz) :
 {
     cloud->insert(cloud->begin(), ncloud->begin(), ncloud->end());
     iteration = 0;
+    R_cloud.setIdentity();
+    t_cloud.setZero();
 }
 
 void gp_compressor::save_compressed(const std::string& name)
@@ -148,7 +150,7 @@ void gp_compressor::train_processes()
         }
         gps[i].add_measurements(X, y);
         to_be_added[i].clear();
-        S[i].clear(); // DEBUG FOR MAPPING!
+        S[i].clear(); // DEBUG FOR MAPPING!?
     }
     /*leaf_iterator iter1(octree);
     while (*++iter1) {
@@ -224,6 +226,9 @@ void gp_compressor::project_cloud()
     }
     octree.remove_just_points();
     delete[] occupied_indices;
+
+    free.resize(sz*sz, n); // crashes if put with the others
+    free.setZero();
 }
 
 gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
@@ -275,6 +280,7 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
 
         X_star.resize(sz*sz, 2);
         points = 0;
+        std::vector<bool> point_free;
         for (int y = 0; y < sz; ++y) { // ROOM FOR SPEEDUP
             for (int x = 0; x < sz; ++x) {
                 ind = x*sz + y;
@@ -284,6 +290,7 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
                 X_star(points, 0) = res*((double(x) + 0.5f)/double(sz) - 0.5f);
                 X_star(points, 1) = res*((double(y) + 0.5f)/double(sz) - 0.5f);
                 ++points;
+                point_free.push_back(free(ind, i));
             }
         }
         X_star.conservativeResize(points, 2);
@@ -308,11 +315,18 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
                 ncloud->at(counter).r = 255;
                 ncloud->at(counter).b = 255;
             }*/
+            /*
             if (i < iteration) {
                 ncloud->at(counter).g = 255;
             }
             else {
                 ncloud->at(counter).b = 255;
+            }*/
+            if (point_free[m]) {
+                ncloud->at(counter).b = 255;
+            }
+            else {
+                ncloud->at(counter).g = 255;
             }
             ++counter;
         }

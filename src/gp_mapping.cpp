@@ -39,6 +39,7 @@ void gp_mapping::insert_into_map()
     S.resize(n); // increase number of patches
     to_be_added.resize(n);
     W.conservativeResize(sz*sz, n);
+    free.conservativeResize(sz*sz, n);
     rotations.resize(n);
     means.resize(n);
 
@@ -49,7 +50,8 @@ void gp_mapping::insert_into_map()
     std::vector<float> distances; // same, distances
     Eigen::Matrix3d R;
     Vector3d mid;
-    int* occupied_indices = new int[cloud->width*cloud->height](); // maybe save this for later? just one bool
+    int* occupied_indices = new int[cloud->size()](); // maybe save this for later? just one bool
+    //int gp_indices = new int[cloud->size()]; // can be used instead of occupied_indices
 
     bool is_new;
     point center;
@@ -102,7 +104,59 @@ void gp_mapping::insert_into_map()
     }
     octree.remove_just_points();
     delete[] occupied_indices;
+
+    // do free space stuff
+    //train_classification(gp_indices);
+    //delete[] gp_indices;
+
     train_processes();
+}
+
+void gp_mapping::train_classification(int* gp_indices)
+{
+    // save information about free space, probably subsampled
+    Vector3f measurement;
+    Vector3f delta;
+    Vector3d intersection;
+    Vector3d loc;
+    Matrix3d R;
+    Vector3d mid;
+    int x, y;
+    int ind;
+    int m;
+    std::vector<int> intersected_indices;
+    for (int i = 0; i < cloud->size(); ++i) { // only add if gps already exists?
+        measurement = cloud->points[i].getVector3fMap();
+        delta = measurement - t_cloud.cast<float>(); // assumes original cloud has camera at (0, 0, 0)
+        octree.get_intersected_gps(t_cloud.cast<float>(), delta, intersected_indices);
+        if (intersected_indices.size() == 0) {
+            continue;
+        }
+        for (int j = 0; j < intersected_indices.size(); ++j) {
+            if (intersected_indices[j] == -1) {
+                continue;
+            }
+            m = intersected_indices[j];
+            R = rotations[m].toRotationMatrix();
+            Vector3d normal = R.col(0);
+            mid = means[m];
+            double d = normal.dot(mid - t_cloud) / (normal.dot(delta.cast<double>()));
+            intersection = t_cloud + d*delta.cast<double>();
+            loc = R.transpose()*(intersection - mid);
+            if (loc(1) > res/2.0f || loc(1) < -res/2.0f || loc(2) > res/2.0f || loc(2) < -res/2.0f) {
+                continue;
+            }
+            x = int(double(sz)*(loc(1)/res+0.5f)); // transforming into image patch coordinates
+            y = int(double(sz)*(loc(2)/res+0.5f));
+            ind = sz*x + y;
+            if (j == intersected_indices.size() - 1) {
+                free(ind, m) = false;
+            }
+            else {
+                free(ind, m) = true;
+            }
+        }
+    }
 }
 
 void gp_mapping::transform_to_old(int i, const std::vector<int>& index_search,

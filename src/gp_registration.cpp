@@ -4,7 +4,7 @@ using namespace Eigen;
 
 gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
                                  asynch_visualizer* vis) :
-    gp_compressor(cloud, res, sz), step(1e-3f), vis(vis), P(6)
+    gp_compressor(cloud, res, sz), step(1e-3f), vis(vis), P(6) // 1e-2f for levenberg-marquard
 {
     /*covariance.setZero();
     mean1.setZero();
@@ -13,8 +13,6 @@ gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
     project_cloud();
     std::cout << "Number of patches: " << S.size() << std::endl;
     train_processes();
-    R_cloud.setIdentity();
-    t_cloud.setZero();
 }
 
 void gp_registration::get_cloud_transformation(Matrix3d& R, Vector3d& t)
@@ -69,7 +67,7 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
 bool gp_registration::registration_done()
 {
     return (delta.head<3>().norm() < 0.2 && delta.tail<3>().norm() < 0.2);
-    //return (delta.head<3>().norm() < 0.4 && delta.tail<3>().norm() < 0.4);
+    //return (delta.head<3>().norm() < 0.03 && delta.tail<3>().norm() < 0.03);
 }
 
 void gp_registration::registration_step()
@@ -83,10 +81,10 @@ void gp_registration::registration_step()
     R_cloud = R*R_cloud; // add to total rotation
     t_cloud += t; // add to total translation
     transform_pointcloud(cloud, R, t);
-    std::cout << "Doing step number " << step_nbr << std::endl;
+    /*std::cout << "Doing step number " << step_nbr << std::endl;
     std::cout << "P derivative " << delta << std::endl;
     std::cout << "P angles norm " << delta.tail<3>().norm() << std::endl;
-    std::cout << "P translation norm " << delta.head<3>().norm() << std::endl;
+    std::cout << "P translation norm " << delta.head<3>().norm() << std::endl;*/
     ++step_nbr;
 }
 
@@ -215,8 +213,8 @@ void gp_registration::compute_transformation()
     }
     delete[] occupied_indices;
 
-    //JacobiSVD<MatrixXd> H(P.transpose()*P, ComputeThinU | ComputeThinV);
-    //delta = ls*H.solve(P.transpose());
+    //JacobiSVD<MatrixXd> H(P.transpose()*P + 1e0*Matrix<double, 6, 6>::Identity(), ComputeThinU | ComputeThinV);
+    //delta = H.solve(P.transpose());
     delta = P.transpose();
 }
 

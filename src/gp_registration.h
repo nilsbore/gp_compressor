@@ -16,10 +16,8 @@ protected:
     Eigen::VectorXd delta;
     double added_derivatives;
     double step;
-    Eigen::Matrix3d R_cloud;
-    Eigen::Vector3d t_cloud;
     int step_nbr;
-    asynch_visualizer* vis;
+    asynch_visualizer* vis; // for visualizing the registration process and map
     void add_derivatives(const Eigen::MatrixXd& X, const Eigen::MatrixXd& dX);
     //void get_transformation(Eigen::Matrix3d& R, Eigen::Vector3d& t);
     void compute_transformation();
