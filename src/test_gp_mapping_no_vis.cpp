@@ -7,7 +7,6 @@
 #include <pcl/common/transforms.h>
 #include <boost/thread/thread.hpp>
 #include "gp_mapping.h"
-#include "asynch_visualizer.h"
 #include <dirent.h>
 
 using namespace std;
