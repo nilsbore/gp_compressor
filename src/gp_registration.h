@@ -31,6 +31,7 @@ public:
     bool registration_done();
     void registration_step();
     void get_cloud_transformation(Eigen::Matrix3d& R, Eigen::Vector3d& t);
+    double get_likelihood();
     gp_registration(pointcloud::ConstPtr cloud, double res = 0.1f, int sz = 10,
                     asynch_visualizer* vis = NULL);
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

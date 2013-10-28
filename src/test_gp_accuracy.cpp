@@ -8,10 +8,11 @@
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
 #include <boost/thread/thread.hpp>
-#include "gp_mapping.h"
+#include "gp_registration.h"
 #include <dirent.h>
+#include <stdlib.h>
 
-using namespace std;
+//using namespace std;
 
 void read_files(std::vector<std::string>& files, const std::string& dirname)
 {
@@ -39,11 +40,12 @@ void read_ground_truth(std::vector<double>& sec,
                        const std::string& file)
 {
     std::ifstream fin(file.c_str());
+
     std::string line;
     double timestamp;
     Eigen::Vector3d vec;
     Eigen::Quaterniond quat;
-    int counter;
+    int counter = 0;
     while (getline(fin, line)) {
         if (counter < 3) {
             ++counter;
@@ -84,28 +86,63 @@ double get_timestamp_from_filename(const std::string& file)
     return rtn;
 }
 
+void plot_vector(const std::vector<double>& y)
+{
+    std::stringstream ss;
+    ss << "octave --eval \"plot([";
+    for (int i = 0; i < y.size(); ++i) {
+        if (i > 0) {
+            ss << ",";
+        }
+        ss << y[i];
+    }
+    ss << "]); pause\"";
+    int rtn = system(ss.str().c_str());
+}
+
+void plot_vector_pair(const std::vector<double>& yb, const std::vector<double>& yr)
+{
+    std::stringstream ss;
+    ss << "octave --eval \"plot([";
+    for (int i = 0; i < yb.size(); ++i) {
+        if (i > 0) {
+            ss << ",";
+        }
+        ss << yb[i];
+    }
+    ss << "], 'b'); hold on; plot([";
+    for (int i = 0; i < yr.size(); ++i) {
+        if (i > 0) {
+            ss << ",";
+        }
+        ss << yr[i];
+    }
+    ss << "], 'r'); pause\"";
+    int rtn = system(ss.str().c_str());
+}
+
 int main(int argc, char** argv)
 {
     std::vector<std::string> files;
     std::string dirname = "/home/nbore/Data/rgbd_dataset_freiburg1_room/pointclouds";
-    std::string groundtruth = "/home/nbore/Data/rgbd_dataset_freiburg1_room/groundtruth.txt";
+    std::string groundtruth = "/home/nbore/Data/rgbd_dataset_freiburg1_room/groundtruth1.txt";
     read_files(files, dirname);
     std::vector<double> sec;
     std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > pos;
     std::vector<Eigen::Quaterniond, Eigen::aligned_allocator<Eigen::Quaterniond> > rot;
     read_ground_truth(sec, pos, rot, groundtruth);
-    for (int i = 0; i < 10; ++i) {
+    /*for (int i = 0; i < 10; ++i) {
         std::cout << std::setprecision(14) << sec[i] << " ";
         std::cout << pos[i].transpose() << " ";
         std::cout << rot[i].x() << " " << rot[i].y() << " " << rot[i].z() << " " << rot[i].w() << std::endl;
-    }
+    }*/
 
     Eigen::Matrix3d R;
     Eigen::Vector3d t;
     Eigen::Quaterniond quat;
     Eigen::Vector3d t_gt;
     Eigen::Quaterniond quat_gt;
-    int step = 2;
+    int step = 5;
     for (int i = 0; i + step < files.size(); ++i) {
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr first_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
         if (pcl::io::loadPCDFile<pcl::PointXYZRGB> (files[i], *first_cloud) == -1)
@@ -125,28 +162,55 @@ int main(int argc, char** argv)
         sor.setLeafSize(0.01f, 0.01f, 0.01f);
         sor.filter(*filtered_cloud);
 
-        gp_mapping comp(first_cloud, 0.20f, 15);
-        comp.add_cloud(filtered_cloud);
-        comp.get_cloud_transformation(R, t);
-        quat = Eigen::Quaterniond(R);
-        quat.normalize();
-
+        // get ground truth transformation
         double time_first = get_timestamp_from_filename(files[i]);
         double time_second = get_timestamp_from_filename(files[i + step]);
         int ind_first = find_closest_timestamp(sec, time_first);
         int ind_second = find_closest_timestamp(sec, time_second);
 
+        std::cout << "rot.size(): " << rot.size() << std::endl;
+        std::cout << "ind_first: " << ind_first << std::endl;
+        std::cout << "ind_second: " << ind_second << std::endl;
+
         quat_gt = rot[ind_first].inverse()*rot[ind_second];
         quat_gt.normalize();
-        t_gt = pos[ind_second] - pos[ind_first];
+        t_gt = pos[ind_first] - pos[ind_second];
 
-        std::cout << quat.x() << " " << quat.y() << " " << quat.z() << " " << quat.w() << std::endl;
-        std::cout << quat_gt.x() << " " << quat_gt.y() << " " << quat_gt.z() << " " << quat_gt.w() << std::endl;
+        pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters(new pcl::PointCloud<pcl::PointXYZ>());
+        pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>());
+        asynch_visualizer viewer(ncenters, normals);
+        gp_registration comp(first_cloud, 0.20f, 15, &viewer);
+        viewer.display_cloud = comp.load_compressed();
 
-        std::cout << t.transpose() << std::endl;
-        std::cout << t_gt.transpose() << std::endl;
+        std::vector<double> quat_err;
+        std::vector<double> t_err;
+        std::vector<double> quat_norm;
+        std::vector<double> t_norm;
+        std::vector<double> likelihoods;
 
-        exit(0);
+        comp.add_cloud(filtered_cloud);
+        pthread_t my_viewer_thread;
+        pthread_create(&my_viewer_thread, NULL, viewer_thread, &viewer);
+        do {
+            comp.registration_step();
+            comp.get_cloud_transformation(R, t);
+            quat = Eigen::Quaterniond(R);
+            quat.normalize();
+            Eigen::Quaterniond temp = quat.inverse()*quat_gt;
+            temp.normalize();
+            quat_err.push_back(temp.vec().norm());
+            t_err.push_back((t - t_gt).norm());
+            quat_norm.push_back(quat.vec().norm());
+            t_norm.push_back(t.norm());
+            likelihoods.push_back(comp.get_likelihood());
+        } while (!comp.registration_done());
+        pthread_join(my_viewer_thread, NULL);
+
+        plot_vector_pair(t_err, t_norm);
+        plot_vector_pair(quat_err, quat_norm);
+        plot_vector(likelihoods);
+
+        return 0;
     }
 
     return 0;

@@ -1,5 +1,7 @@
 #include "gp_registration.h"
 
+#define COMPUTE_LIKELIHOOD 1
+
 using namespace Eigen;
 
 gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
@@ -66,7 +68,7 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
 
 bool gp_registration::registration_done()
 {
-    return (delta.head<3>().norm() < 0.2 && delta.tail<3>().norm() < 0.2);
+    return (delta.head<3>().norm() < 0.01 && delta.tail<3>().norm() < 0.1);
     //return (delta.head<3>().norm() < 0.03 && delta.tail<3>().norm() < 0.03);
 }
 
@@ -81,10 +83,10 @@ void gp_registration::registration_step()
     R_cloud = R*R_cloud; // add to total rotation
     t_cloud += t; // add to total translation
     transform_pointcloud(cloud, R, t);
-    /*std::cout << "Doing step number " << step_nbr << std::endl;
+    std::cout << "Doing step number " << step_nbr << std::endl;
     std::cout << "P derivative " << delta << std::endl;
     std::cout << "P angles norm " << delta.tail<3>().norm() << std::endl;
-    std::cout << "P translation norm " << delta.head<3>().norm() << std::endl;*/
+    std::cout << "P translation norm " << delta.head<3>().norm() << std::endl;
     ++step_nbr;
 }
 
@@ -128,7 +130,9 @@ void gp_registration::compute_transformation()
     MatrixXd J(3, 6);
     MatrixXd dX;
     //MatrixXd dX_temp;
+#ifdef COMPUTE_LIKELIHOOD
     VectorXd l;
+#endif
     point center;
     int i;
     P.setZero();
@@ -168,8 +172,10 @@ void gp_registration::compute_transformation()
             std::cout << dX-dX_temp << std::endl;
             std::cout << "Didn't work, result: " << diff << std::endl;
         }*/
-        //gps[i].compute_likelihoods(l, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
-          //                         points.row(0).transpose().cast<double>());
+#ifdef COMPUTE_LIKELIHOOD
+        gps[i].compute_likelihoods(l, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
+                                   points.row(0).transpose().cast<double>());
+#endif
         // transform points and derivatives to global system
         R = rotations[i].toRotationMatrix();
         t = means[i];
@@ -179,7 +185,9 @@ void gp_registration::compute_transformation()
             get_transform_jacobian(J, points.col(m));
             //std::cout << P << std::endl;
             //std::cout << dX.row(m)*J << std::endl;
-            //ls = (added_derivatives/(added_derivatives+1.0f))*ls + 1.0f/(added_derivatives+1.0f)*l(m);
+#ifdef COMPUTE_LIKELIHOOD
+            ls = (added_derivatives/(added_derivatives+1.0f))*ls + 1.0f/(added_derivatives+1.0f)*l(m);
+#endif
             P = (added_derivatives/(added_derivatives+1.0f))*P + 1.0f/(added_derivatives+1.0f)*dX.row(m)*J;
             ++added_derivatives;
         }
@@ -216,6 +224,11 @@ void gp_registration::compute_transformation()
     //JacobiSVD<MatrixXd> H(P.transpose()*P + 1e0*Matrix<double, 6, 6>::Identity(), ComputeThinU | ComputeThinV);
     //delta = H.solve(P.transpose());
     delta = P.transpose();
+}
+
+double gp_registration::get_likelihood()
+{
+    return ls;
 }
 
 /*void gp_registration::add_derivatives(const MatrixXd& X, const MatrixXd& dX)

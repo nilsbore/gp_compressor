@@ -73,7 +73,7 @@ int main(int argc, char** argv)
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
         pcl::VoxelGrid<pcl::PointXYZRGB> sor;
         sor.setInputCloud(other_cloud);
-        sor.setLeafSize(0.01f, 0.01f, 0.01f);
+        sor.setLeafSize(0.03f, 0.03f, 0.03f);
         sor.filter(*filtered_cloud);
         //comp.transform_pointcloud(other_cloud, R, t);
         comp.add_cloud(filtered_cloud);
