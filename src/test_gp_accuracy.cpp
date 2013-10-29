@@ -8,9 +8,10 @@
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
 #include <boost/thread/thread.hpp>
-#include "gp_registration.h"
 #include <dirent.h>
-#include <stdlib.h>
+
+#include "gp_registration.h"
+#include "octave_convenience.h"
 
 //using namespace std;
 
@@ -84,41 +85,6 @@ double get_timestamp_from_filename(const std::string& file)
     double rtn;
     ss >> rtn;
     return rtn;
-}
-
-void plot_vector(const std::vector<double>& y)
-{
-    std::stringstream ss;
-    ss << "octave --eval \"plot([";
-    for (int i = 0; i < y.size(); ++i) {
-        if (i > 0) {
-            ss << ",";
-        }
-        ss << y[i];
-    }
-    ss << "]); pause\"";
-    int rtn = system(ss.str().c_str());
-}
-
-void plot_vector_pair(const std::vector<double>& yb, const std::vector<double>& yr)
-{
-    std::stringstream ss;
-    ss << "octave --eval \"plot([";
-    for (int i = 0; i < yb.size(); ++i) {
-        if (i > 0) {
-            ss << ",";
-        }
-        ss << yb[i];
-    }
-    ss << "], 'b'); hold on; plot([";
-    for (int i = 0; i < yr.size(); ++i) {
-        if (i > 0) {
-            ss << ",";
-        }
-        ss << yr[i];
-    }
-    ss << "], 'r'); pause\"";
-    int rtn = system(ss.str().c_str());
 }
 
 int main(int argc, char** argv)
@@ -206,9 +172,10 @@ int main(int argc, char** argv)
         } while (!comp.registration_done());
         pthread_join(my_viewer_thread, NULL);
 
-        plot_vector_pair(t_err, t_norm);
-        plot_vector_pair(quat_err, quat_norm);
-        plot_vector(likelihoods);
+        octave_convenience oc;
+        oc.eval_plot_vector_pair(t_err, t_norm);
+        oc.eval_plot_vector_pair(quat_err, quat_norm);
+        oc.eval_plot_vector(likelihoods);
 
         return 0;
     }
