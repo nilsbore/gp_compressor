@@ -113,7 +113,7 @@ void gp_registration::get_local_points(MatrixXd& points, int* occupied_indices, 
 
 void gp_registration::compute_transformation()
 {
-    if (vis != NULL) {
+    if (vis != NULL) { // for visualization
         vis->lock();
         vis->display_centers->resize(cloud->size());
         vis->display_normals->resize(cloud->size());
@@ -192,7 +192,7 @@ void gp_registration::compute_transformation()
             ++added_derivatives;
         }
 
-        if (vis != NULL) {
+        if (vis != NULL) { // for visualization
             vis->lock();
             for (int m = 0; m < points.cols(); ++m) {
                 vis->display_centers->at(k).x = points(0, m);
@@ -212,7 +212,8 @@ void gp_registration::compute_transformation()
         //std::cout << "Index search: " << index_search.size() << std::endl;
     }
     octree.remove_just_points(); // not sure if this has any effect, removes points but not leaves
-    if (vis != NULL) {
+
+    if (vis != NULL) { // for visualization
         vis->lock();
         vis->display_centers->resize(k);
         vis->display_normals->resize(k);
@@ -221,7 +222,7 @@ void gp_registration::compute_transformation()
     }
     delete[] occupied_indices;
 
-    //JacobiSVD<MatrixXd> H(P.transpose()*P + 1e0*Matrix<double, 6, 6>::Identity(), ComputeThinU | ComputeThinV);
+    //JacobiSVD<MatrixXd> H(P.transpose()*P + 0.5f*Matrix<double, 6, 6>::Identity(), ComputeThinU | ComputeThinV);
     //delta = H.solve(P.transpose());
     delta = P.transpose();
 }
@@ -230,46 +231,3 @@ double gp_registration::get_likelihood()
 {
     return ls;
 }
-
-/*void gp_registration::add_derivatives(const MatrixXd& X, const MatrixXd& dX)
-{
-    Vector3d diff1;
-    Vector3d diff2;
-    Vector3d cx;
-    Vector3d x;
-    Vector3d dx;
-    for (int i = 0; i < X.rows(); ++i) {
-        x = X.row(i).transpose();
-        dx = dX.row(i).transpose();
-        double weight = dx.norm();
-        if (weight == 0.0f) {
-            continue;
-        }
-
-        cx = x + step/weight*dx;
-
-        accumulated_weight += weight;
-        double alpha = weight / accumulated_weight;
-
-        diff1 = x - mean1;
-        diff2 = cx - mean2;
-        covariance = (1.0f - alpha)*(covariance + alpha * (diff2 * diff1.transpose()));
-
-        mean1 += alpha*diff1;
-        mean2 += alpha*diff2;
-    }
-}
-
-void gp_registration::get_transformation(Matrix3d& R, Vector3d& t)
-{
-    JacobiSVD<Matrix3d> svd(covariance, Eigen::ComputeFullU | Eigen::ComputeFullV);
-    const Matrix3d& u = svd.matrixU();
-    const Matrix3d& v = svd.matrixV();
-    Matrix3d s;
-    s.setIdentity();
-    if (u.determinant()*v.determinant() < 0.0f) {
-        s(2, 2) = -1.0f;
-    }
-    R = u * s * v.transpose();
-    t = mean2 - R*mean1;
-}*/

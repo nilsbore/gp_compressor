@@ -8,8 +8,7 @@ include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-#add_custom_target(SOURCES src/sparse_gp.h)
-
+# MAIN LIBRARY
 add_library(pointcloud_compressor src/pointcloud_compressor.cpp)
 add_library(gp_compressor src/gp_compressor.cpp)
 add_library(pointcloud_decompressor src/pointcloud_decompressor.cpp)
@@ -50,3 +49,9 @@ target_link_libraries(test_gp_mapping gp_mapping ${PCL_LIBRARIES})
 target_link_libraries(test_gp_mapping_no_vis gp_mapping ${PCL_LIBRARIES})
 target_link_libraries(test_gp_accuracy gp_registration asynch_visualizer octave_convenience ${PCL_LIBRARIES})
 target_link_libraries(test_decompress pointcloud_decompressor ${PCL_LIBRARIES})
+
+# NDT LIBRARY
+add_library(voxel_grid_covariance ndt/voxel_grid_covariance.cpp)
+add_executable(test_ndt_accuracy ndt/test_ndt_accuracy.cpp)
+
+target_link_libraries(test_ndt_accuracy voxel_grid_covariance octave_convenience ${PCL_LIBRARIES})

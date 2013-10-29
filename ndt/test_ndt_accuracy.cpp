@@ -3,17 +3,18 @@
 #include <fstream>
 #include <pcl/point_cloud.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/common/utils.h>
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/approximate_voxel_grid.h>
 #include <boost/thread/thread.hpp>
 #include <dirent.h>
 
-#include "gp_registration.h"
-#include "octave_convenience.h"
+#include "../src/octave_convenience.h"
+#include "ndt.h"
 
-//using namespace std;
 
 void read_files(std::vector<std::string>& files, const std::string& dirname)
 {
@@ -97,11 +98,6 @@ int main(int argc, char** argv)
     std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > pos;
     std::vector<Eigen::Quaterniond, Eigen::aligned_allocator<Eigen::Quaterniond> > rot;
     read_ground_truth(sec, pos, rot, groundtruth);
-    /*for (int i = 0; i < 10; ++i) {
-        std::cout << std::setprecision(14) << sec[i] << " ";
-        std::cout << pos[i].transpose() << " ";
-        std::cout << rot[i].x() << " " << rot[i].y() << " " << rot[i].z() << " " << rot[i].w() << std::endl;
-    }*/
 
     Eigen::Matrix3d R;
     Eigen::Vector3d t;
@@ -142,40 +138,48 @@ int main(int argc, char** argv)
         quat_gt.normalize();
         t_gt = pos[ind_first] - pos[ind_second];
 
-        pcl::PointCloud<pcl::PointXYZ>::Ptr ncenters(new pcl::PointCloud<pcl::PointXYZ>());
-        pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>());
-        asynch_visualizer viewer(ncenters, normals);
-        gp_registration comp(first_cloud, 0.10f, 5, &viewer);
-        viewer.display_cloud = comp.load_compressed();
+        // Initializing Normal Distributions Transform (NDT).
+        pcl::NormalDistributionsTransform<pcl::PointXYZRGB, pcl::PointXYZRGB> ndt;
 
-        std::vector<double> quat_err;
-        std::vector<double> t_err;
-        std::vector<double> quat_norm;
-        std::vector<double> t_norm;
-        std::vector<double> likelihoods;
+        // Setting scale dependent NDT parameters
+        // Setting minimum transformation difference for termination condition.
+        ndt.setTransformationEpsilon (0.001);
+        // Setting maximum step size for More-Thuente line search.
+        ndt.setStepSize (0.01);
+        //Setting Resolution of NDT grid structure (VoxelGridCovariance).
+        ndt.setResolution (0.1);
 
-        comp.add_cloud(filtered_cloud);
-        pthread_t my_viewer_thread;
-        pthread_create(&my_viewer_thread, NULL, viewer_thread, &viewer);
-        do {
-            comp.registration_step();
-            comp.get_cloud_transformation(R, t);
-            quat = Eigen::Quaterniond(R);
-            quat.normalize();
-            Eigen::Quaterniond temp = quat.inverse()*quat_gt;
-            temp.normalize();
-            quat_err.push_back(temp.vec().norm());
-            t_err.push_back((t - t_gt).norm());
-            quat_norm.push_back(quat.vec().norm());
-            t_norm.push_back(t.norm());
-            likelihoods.push_back(comp.get_likelihood());
-        } while (!comp.registration_done());
-        pthread_join(my_viewer_thread, NULL);
+        // Setting max number of registration iterations.
+        ndt.setMaximumIterations (30);
 
-        octave_convenience oc;
-        oc.eval_plot_vector_pair(t_err, t_norm);
-        oc.eval_plot_vector_pair(quat_err, quat_norm);
-        oc.eval_plot_vector(likelihoods);
+        // Setting point cloud to be aligned.
+        ndt.setInputCloud (filtered_cloud);
+        // Setting point cloud to be aligned to.
+        ndt.setInputTarget (first_cloud);
+
+        // Set initial alignment estimate found using robot odometry.
+        Eigen::AngleAxisf init_rotation (0.0, Eigen::Vector3f::UnitZ ());
+        Eigen::Translation3f init_translation (0, 0, 0);
+        Eigen::Matrix4f init_guess = (init_translation * init_rotation).matrix ();
+
+        // Calculating required rigid transform to align the input cloud to the target cloud.
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr output_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
+        ndt.align(*output_cloud, init_guess);
+
+        Eigen::Matrix4f transformation = ndt.getFinalTransformation ();
+        quat = Eigen::Quaterniond(transformation.block<3, 3>(0, 0).cast<double>());
+        quat.normalize();
+        t = transformation.block<3, 1>(0, 3).cast<double>();
+
+        Eigen::Quaterniond temp = quat.inverse()*quat_gt;
+        temp.normalize();
+
+        std::cout << transformation << std::endl;
+        std::cout << temp.vec().norm() << std::endl;
+        std::cout << (t - t_gt).norm() << std::endl;
+
+        // Transforming unfiltered, input cloud using found transform.
+        //pcl::transformPointCloud (*input_cloud, *output_cloud, ndt.getFinalTransformation ());
 
         return 0;
     }

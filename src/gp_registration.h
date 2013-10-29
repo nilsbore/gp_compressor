@@ -19,7 +19,6 @@ protected:
     int step_nbr;
     asynch_visualizer* vis; // for visualizing the registration process and map
     void add_derivatives(const Eigen::MatrixXd& X, const Eigen::MatrixXd& dX);
-    //void get_transformation(Eigen::Matrix3d& R, Eigen::Vector3d& t);
     void compute_transformation();
     void get_local_points(Eigen::MatrixXd& points, int* occupied_indices, const std::vector<int>& index_search, int i);
     void get_transform_jacobian(Eigen::MatrixXd& J, const Eigen::Vector3d& x);

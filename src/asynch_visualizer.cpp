@@ -54,6 +54,7 @@ void asynch_visualizer::run_visualizer()
         viewer->spinOnce(100);
         boost::this_thread::sleep(boost::posix_time::microseconds(100000));
     }
+    viewer->close();
 }
 
 void asynch_visualizer::lock()

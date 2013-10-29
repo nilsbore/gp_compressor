@@ -48,7 +48,7 @@ int main(int argc, char** argv)
         std::cout << "Couldn't read first file " << files[0] << std::endl;
         return 0;
     }
-    gp_mapping comp(cloud, 0.20f, 15, &viewer);
+    gp_mapping comp(cloud, 0.10f, 10, &viewer);
     viewer.display_cloud = comp.load_compressed();
     //Eigen::Matrix3d R;
     //Eigen::Vector3d t;
