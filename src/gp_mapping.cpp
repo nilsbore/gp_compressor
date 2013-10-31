@@ -19,7 +19,12 @@ void gp_mapping::add_cloud(pointcloud::ConstPtr other_cloud)
         registration_step();
     } while (!registration_done());
     // add point cloud to the map
-    insert_into_map();
+    if (step_nbr < max_steps) {
+        insert_into_map();
+    }
+    else {
+        cloud->clear();
+    }
 
     /*S.resize(n); // increase number of patches
     to_be_added.resize(n);

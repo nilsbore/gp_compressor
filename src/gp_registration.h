@@ -14,9 +14,11 @@ protected:
     double ls; // mean likelihood
     Eigen::RowVectorXd P; // mean derivative with respect to point
     Eigen::VectorXd delta; // step direction
+    bool delta_diff_small;
     double added_derivatives; // number of derivatives in mean
     double step; // step size
     int step_nbr; // step iteration
+    int max_steps; // maximum number of iteration
     asynch_visualizer* vis; // for visualizing the registration process and map
     void add_derivatives(const Eigen::MatrixXd& X, const Eigen::MatrixXd& dX);
     void compute_transformation();

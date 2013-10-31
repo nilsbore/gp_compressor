@@ -53,3 +53,5 @@ void rbf_kernel::construct_covariance_fast(MatrixXd& K, const MatrixXd& X, const
         K.row(i) = sigmaf_sq*(-0.5f/l_sq*temp).exp();
     }
 }
+
+//void rbf_kernel::kernel_dtheta(MatrixXd& k_dtheta, )

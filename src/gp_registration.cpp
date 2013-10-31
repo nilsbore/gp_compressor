@@ -6,12 +6,14 @@ using namespace Eigen;
 
 gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
                                  asynch_visualizer* vis) :
-    gp_compressor(cloud, res, sz), step(1e-3f), vis(vis), P(6) // 1e-2f for levenberg-marquard
+    gp_compressor(cloud, res, sz), delta(6, 1), delta_diff_small(false),
+    step(1e-3f), vis(vis), P(6), max_steps(300) // 1e-2f for levenberg-marquard
 {
     /*covariance.setZero();
     mean1.setZero();
     mean2.setZero();
     accumulated_weight = 0;*/
+    delta.setZero();
     project_cloud();
     std::cout << "Number of patches: " << S.size() << std::endl;
     train_processes();
@@ -68,7 +70,7 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
 
 bool gp_registration::registration_done()
 {
-    return (delta.head<3>().norm() < 0.1 && delta.tail<3>().norm() < 0.1);
+    return step_nbr >= max_steps || (delta.head<3>().norm() < 0.1 && delta.tail<3>().norm() < 0.1);
     //return (delta.head<3>().norm() < 0.03 && delta.tail<3>().norm() < 0.03);
 }
 
@@ -78,7 +80,9 @@ void gp_registration::registration_step()
     Vector3d t;
     //octree.update_random_points(0.1f);
     octree.update_points();
+    VectorXd delta_old = delta;
     compute_transformation();
+    delta_diff_small = (delta - delta_old).norm() < 1e-4f;
     gradient_step(R, t);
     R_cloud = R*R_cloud; // add to total rotation
     t_cloud += t; // add to total translation
@@ -87,6 +91,7 @@ void gp_registration::registration_step()
     std::cout << "P derivative " << delta << std::endl;
     std::cout << "P angles norm " << delta.tail<3>().norm() << std::endl;
     std::cout << "P translation norm " << delta.head<3>().norm() << std::endl;
+    std::cout << "Delta diff: " << (delta - delta_old).norm()  << std::endl;
     ++step_nbr;
 }
 
