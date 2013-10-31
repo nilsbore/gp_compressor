@@ -11,12 +11,12 @@ public:
     using gp_compressor::point;
     using gp_compressor::pointcloud;
 protected:
-    double ls;
-    Eigen::RowVectorXd P;
-    Eigen::VectorXd delta;
-    double added_derivatives;
-    double step;
-    int step_nbr;
+    double ls; // mean likelihood
+    Eigen::RowVectorXd P; // mean derivative with respect to point
+    Eigen::VectorXd delta; // step direction
+    double added_derivatives; // number of derivatives in mean
+    double step; // step size
+    int step_nbr; // step iteration
     asynch_visualizer* vis; // for visualizing the registration process and map
     void add_derivatives(const Eigen::MatrixXd& X, const Eigen::MatrixXd& dX);
     void compute_transformation();

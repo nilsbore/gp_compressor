@@ -12,15 +12,12 @@ public:
     typedef Noise noise_type;
 private:
     // parameters of covariance function:
-    double sigmaf_sq;
-    double l_sq;
-    kernel_type kernel;
-    noise_type noise;
-    //private:
+    kernel_type kernel; // the gp kernel type used
+    noise_type noise; // the noise model used
     int total_count; // How many points have I seen?
     int current_size; // how many inducing points do I have
     int capacity; // maximum number of inducing points
-    double s20;
+    double s20; // measurement noise, should be in noise instead
     double eps_tol; // error tolerance
     Eigen::VectorXd alpha; // Alpha and C are the parameters of the GP
     // Alpha is NxDout

@@ -19,13 +19,15 @@ public:
     typedef pcl::PointCloud<point> pointcloud;
     typedef pcl::octree::OctreePointCloudSearch<point, gp_leaf>::OctreeT::LeafNodeIterator leaf_iterator;
 protected:
-    int iteration;
+    int iteration; // TEMP, just for plotting parts added in latest iteration
     pointcloud::Ptr cloud; // the input pointcloud with RGB color information
-    gp_octree octree;
-    double res;
-    int sz;
-    Eigen::Matrix3d R_cloud;
-    Eigen::Vector3d t_cloud;
+    gp_octree octree; // the octree for fast search in the cloud
+    double res; // size of octree voxels
+    int sz; // number of points for visualization along one side of patch
+    // these two could be needed for ray-tracing from the camera
+    // if that is to be done in this class instead of gp_mapping
+    Eigen::Matrix3d R_cloud; // accumulated rotation of registered cloud, put in registration?
+    Eigen::Vector3d t_cloud; // accumulated translation of registered cloud
 
     // the rotations of the patches
     std::vector<Eigen::Quaterniond, Eigen::aligned_allocator<Eigen::Quaterniond> > rotations;

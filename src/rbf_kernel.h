@@ -8,7 +8,7 @@ class rbf_kernel
 {
 private:
     double sigmaf_sq;
-    double l_sq;
+    double l_sq; // length parameter, how far points influence each other
 public:
     double kernel_function(const Eigen::Vector2d& xi, const Eigen::Vector2d& xj);
     void kernel_dx(Eigen::MatrixXd& k_dx, const Eigen::Vector2d& x, const Eigen::MatrixXd& BV);

@@ -9,7 +9,7 @@
 class gp_mapping : public gp_registration
 {
 private:
-    int min_nbr;
+    int min_nbr; // minimum number of points required to initialize a gp patch
     void insert_into_map();
     void transform_to_old(int i, const std::vector<int>& index_search,
                           int* occupied_indices);
