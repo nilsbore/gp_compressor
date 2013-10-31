@@ -48,7 +48,7 @@ int main(int argc, char** argv)
         std::cout << "Couldn't read first file " << files[0] << std::endl;
         return 0;
     }
-    gp_mapping comp(cloud, 0.10f, 10, &viewer);
+    gp_mapping comp(cloud, 0.15f, 20, &viewer);
     viewer.display_cloud = comp.load_compressed();
     //Eigen::Matrix3d R;
     //Eigen::Vector3d t;
@@ -73,7 +73,7 @@ int main(int argc, char** argv)
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZRGB>());
         pcl::VoxelGrid<pcl::PointXYZRGB> sor;
         sor.setInputCloud(other_cloud);
-        sor.setLeafSize(0.03f, 0.03f, 0.03f);
+        sor.setLeafSize(0.02f, 0.02f, 0.02f);
         sor.filter(*filtered_cloud);
         //comp.transform_pointcloud(other_cloud, R, t);
         comp.add_cloud(filtered_cloud);
