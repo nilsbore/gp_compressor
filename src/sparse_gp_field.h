@@ -1,11 +1,11 @@
-#ifndef SPARSE_GP_H
-#define SPARSE_GP_H
+#ifndef SPARSE_GP_FIELD_H
+#define SPARSE_GP_FIELD_H
 
 #include <Eigen/Dense>
 #include <vector>
 
 template <class Kernel, class Noise>
-class sparse_gp
+class sparse_gp_field
 {
 public:
     typedef Kernel kernel_type;
@@ -19,7 +19,7 @@ private:
     int capacity; // maximum number of inducing points
     double s20; // measurement noise, should be in noise instead
     double eps_tol; // error tolerance
-    Eigen::VectorXd alpha; // Alpha and C are the parameters of the GP
+    Eigen::MatrixXd alpha; // Alpha and C are the parameters of the GP
     // Alpha is NxDout
     Eigen::MatrixXd C;
     Eigen::MatrixXd Q; // Inverse Gram Matrix (K_t).  C and Q are NxN
@@ -29,7 +29,7 @@ private:
     double predict(const Eigen::VectorXd& X_star, double& sigma, bool conf);
     void construct_covariance(Eigen::VectorXd& K, const Eigen::Vector2d& X, const Eigen::MatrixXd& Xv);
     void shuffle(std::vector<int>& ind, int n);
-    void likelihood_dx(Eigen::Vector3d& dx, const Eigen::VectorXd& x, double y);
+    void likelihood_dx(Eigen::Vector3d& dx, const Eigen::Vector2d& x, double y);
     void likelihood_dtheta(Eigen::VectorXd& dtheta, const Eigen::Vector2d& x, double y);
     double likelihood(const Eigen::Vector2d& x, double y);
 public:
@@ -40,14 +40,13 @@ public:
     void add_measurements(const Eigen::MatrixXd& X,const Eigen::VectorXd& y);
     void predict_measurements(Eigen::VectorXd& f_star, const Eigen::MatrixXd& X_star,
                               Eigen::VectorXd& sigconf, bool conf = false);
-    double log_likelihood(const Eigen::VectorXd& X_star, double y);
+    double log_prob(const Eigen::VectorXd& X_star, const Eigen::VectorXd& f_star);
     void compute_derivatives(Eigen::MatrixXd& dX, const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
     void compute_likelihoods(Eigen::VectorXd& l, const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
-    void compute_log_likelihoods(Eigen::VectorXd& l, const Eigen::MatrixXd& X, const Eigen::VectorXd& y);
-    //sparse_gp(int capacity = 30, double s0 = 1e-1f, double sigmaf = 1e-2f, double l = 0.08*0.08);
-    sparse_gp(int capacity = 100, double s0 = 1e-1f);
+    //sparse_gp_field(int capacity = 30, double s0 = 1e-1f, double sigmaf = 1e-2f, double l = 0.08*0.08);
+    sparse_gp_field(int capacity = 100, double s0 = 1e-1f);
 };
 
-#include "sparse_gp.hpp"
+#include "sparse_gp_field.hpp"
 
-#endif // SPARSE_GP_H
+#endif // SPARSE_GP_FIELD_H

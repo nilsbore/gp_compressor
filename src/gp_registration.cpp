@@ -168,7 +168,7 @@ void gp_registration::compute_transformation()
         }
 
         get_local_points(points, occupied_indices, index_search, i);
-        gps[i].compute_derivatives_fast(dX, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
+        gps[i].compute_derivatives(dX, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
                                    points.row(0).transpose().cast<double>());
         /*gps[i].compute_derivatives_fast(dX_temp, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
                                    points.row(0).transpose().cast<double>());

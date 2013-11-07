@@ -71,3 +71,13 @@ void* viewer_thread(void* ptr)
 {
   ((asynch_visualizer*)ptr)->run_visualizer();
 }
+
+void asynch_visualizer::create_thread()
+{
+    pthread_create(&my_viewer_thread, NULL, viewer_thread, this);
+}
+
+void asynch_visualizer::join_thread()
+{
+    pthread_join(my_viewer_thread, NULL);
+}

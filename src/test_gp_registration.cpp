@@ -6,7 +6,7 @@
 //#include <pcl/visualization/range_image_visualizer.h>
 #include <pcl/common/utils.h>
 #include <pcl/common/transforms.h>
-#include <boost/thread/thread.hpp>
+//#include <boost/thread/thread.hpp>
 #include "gp_registration.h"
 #include "asynch_visualizer.h"
 
@@ -39,12 +39,14 @@ int main(int argc, char** argv)
     }
     viewer.display_cloud = comp.load_compressed();
     comp.add_cloud(other_cloud);
-    pthread_t my_viewer_thread;
-    pthread_create(&my_viewer_thread, NULL, viewer_thread, &viewer);
+    //pthread_t my_viewer_thread;
+    //pthread_create(&my_viewer_thread, NULL, viewer_thread, &viewer);
+    viewer.create_thread();
     do {
         comp.registration_step();
     } while (!comp.registration_done());
-    pthread_join(my_viewer_thread, NULL);
+    viewer.join_thread();
+    //pthread_join(my_viewer_thread, NULL);
 
     return 0;
 }

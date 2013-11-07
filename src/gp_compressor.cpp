@@ -127,6 +127,9 @@ void gp_compressor::train_processes()
     MatrixXd X;
     VectorXd y;
     gps.resize(to_be_added.size());
+    double mean = 0;
+    double added = 0;
+    int maxm = 0;
     int i;
     leaf_iterator iter(octree);
     while (*++iter) {
@@ -148,10 +151,18 @@ void gp_compressor::train_processes()
             y(m) = p(0);
             ++m;
         }
+        //gps[i].train_parameters(X, y);
         gps[i].add_measurements(X, y);
+        mean = (added*mean + gps[i].size())/(added + 1);
+        if (gps[i].size() > maxm) {
+            maxm = gps[i].size();
+        }
+        added += 1;
         to_be_added[i].clear();
         S[i].clear(); // DEBUG FOR MAPPING!?
     }
+    std::cout << "Mean added: " << mean << std::endl;
+    std::cout << "Max added: " << maxm << std::endl;
     /*leaf_iterator iter1(octree);
     while (*++iter1) {
         gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter1);

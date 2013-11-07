@@ -6,7 +6,7 @@
 #include <pcl/common/utils.h>
 #include <pcl/common/transforms.h>
 #include <pcl/filters/voxel_grid.h>
-#include <boost/thread/thread.hpp>
+//#include <boost/thread/thread.hpp>
 #include "gp_mapping.h"
 #include "asynch_visualizer.h"
 #include <dirent.h>
@@ -52,8 +52,9 @@ int main(int argc, char** argv)
     viewer.display_cloud = comp.load_compressed();
     //Eigen::Matrix3d R;
     //Eigen::Vector3d t;
-    pthread_t my_viewer_thread;
-    pthread_create(&my_viewer_thread, NULL, viewer_thread, &viewer);
+    //pthread_t my_viewer_thread;
+    //pthread_create(&my_viewer_thread, NULL, viewer_thread, &viewer);
+    viewer.create_thread();
     int i = 0;
     for (const std::string& file : files) {
         if (i == 0) {
@@ -89,7 +90,8 @@ int main(int argc, char** argv)
         viewer.unlock();
         ++i;
     }
-    pthread_join(my_viewer_thread, NULL);
+    //pthread_join(my_viewer_thread, NULL);
+    viewer.join_thread();
 
     return 0;
 }

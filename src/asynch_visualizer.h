@@ -9,6 +9,7 @@ class asynch_visualizer
 {
 private:
     pthread_mutex_t mutex;
+    pthread_t my_viewer_thread;
 public:
     bool has_transformed;
     bool map_has_transformed;
@@ -17,6 +18,8 @@ public:
     pcl::PointCloud<pcl::PointXYZ>::Ptr display_centers;
     pcl::PointCloud<pcl::Normal>::Ptr display_normals;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr display_other;
+    void create_thread();
+    void join_thread();
     void lock();
     void unlock();
     void run_visualizer();

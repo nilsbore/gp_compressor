@@ -1,4 +1,4 @@
-#include "sparse_gp.h"
+#include "sparse_gp_field.h"
 
 #include <ctime>
 #include <stdio.h> // until we removed the old debug printouts
@@ -10,22 +10,8 @@
 
 using namespace Eigen;
 
-/*sparse_gp::sparse_gp(int capacity, double s0, double sigmaf, double l) :
-    capacity(capacity), s20(s0), sigmaf_sq(sigmaf), l_sq(l),
-    eps_tol(1e-5f), current_size(0), total_count(0) // 1e-6f
-{
-
-}*/
-
-/*sparse_gp::sparse_gp(base_kernel* kernel, int capacity, double s0) :
-    kernel(kernel), capacity(capacity), s20(s0),
-    eps_tol(1e-5f), current_size(0), total_count(0) // 1e-6f
-{
-
-}*/
-
 template <class Kernel, class Noise>
-sparse_gp<Kernel, Noise>::sparse_gp(int capacity, double s0) :
+sparse_gp_field<Kernel, Noise>::sparse_gp_field(int capacity, double s0) :
     kernel(), noise(s0), capacity(capacity), s20(s0),
     eps_tol(1e-6f), current_size(0), total_count(0) // 1e-6f
 {
@@ -33,14 +19,14 @@ sparse_gp<Kernel, Noise>::sparse_gp(int capacity, double s0) :
 }
 
 template <class Kernel, class Noise>
-int sparse_gp<Kernel, Noise>::size()
+int sparse_gp_field<Kernel, Noise>::size()
 {
     return current_size;
 }
 
 // shuffle the data so that all neighbouring points aren't added at once
 template <class Kernel, class Noise>
-void sparse_gp<Kernel, Noise>::shuffle(std::vector<int>& ind, int n)
+void sparse_gp_field<Kernel, Noise>::shuffle(std::vector<int>& ind, int n)
 {
     ind.resize(n);
     for (int i = 0; i < n; ++i) {
@@ -57,52 +43,35 @@ void sparse_gp<Kernel, Noise>::shuffle(std::vector<int>& ind, int n)
 
 //Add a chunk of data
 template <class Kernel, class Noise>
-void sparse_gp<Kernel, Noise>::add_measurements(const MatrixXd& X,const VectorXd& y)
+void sparse_gp_field<Kernel, Noise>::add_measurements(const MatrixXd& X,const MatrixXd& Y)
 {
     std::vector<int> ind;
-    shuffle(ind, y.rows());
-
-    /*std::cout << "[ ";
-    for (int i = 0; i < X.rows(); ++i) {
-        std::cout << X.row(ind[i]);
-        if (i < X.rows() - 1) {
-            std::cout << " ;" << std::endl;
-        }
-        else {
-            std::cout << " ]" << std::endl;
-        }
-    }
-
-    std::cout << "[ ";
-    for (int i = 0; i < y.rows(); ++i) {
-        std::cout << y(ind[i]) << " ";
-    }
-    std::cout << "]" << std::endl;*/
+    shuffle(ind, Y.rows());
 
     for (int i = 0; i < X.rows(); i++) {
-        add(X.row(ind[i]).transpose(), y(ind[i])); // row transpose
+        add(X.row(ind[i]).transpose(), Y.row(ind[i]).transpose()); // row transpose
     }
 
 }
 
 //Add this input and output to the GP
 template <class Kernel, class Noise>
-void sparse_gp<Kernel, Noise>::add(const VectorXd& X, double y)
+void sparse_gp_field<Kernel, Noise>::add(const VectorXd& X, const VectorXd& y)
 {
 
     total_count++;
     if (DEBUG) {
-        printf("\t\tsparse_gp adding %dth point to sparse_gp (current_size = %d):",total_count,current_size);
+        printf("\t\tsparse_gp_field adding %dth point to sparse_gp_field (current_size = %d):",total_count,current_size);
     }
     //double kstar = kernel_function(X, X);
     double kstar = kernel.kernel_function(X, X);
 
     if (current_size == 0){//First point is easy
-        alpha.resize(1);
+        alpha.resize(1, y.rows());
         C.resize(1, 1);
         Q.resize(1, 1);
         //Equations 2.46 with q, r, and s collapsed
-        alpha(0) = y / (kstar + s20); // resize alpha?
+        alpha = y.transpose() / (kstar + s20); // resize alpha?
         C(0, 0) = -1.0f / (kstar + s20);
         Q(0, 0) = 1.0f / kstar; // K_1^-1
 
@@ -243,14 +212,14 @@ void sparse_gp<Kernel, Noise>::add(const VectorXd& X, double y)
 
     }
     if (isnan(C(0, 0))) {
-        printf("sparse_gp::C has become Nan\n");
+        printf("sparse_gp_field::C has become Nan\n");
     }
 
 }
 
 //Delete a BV.  Very messy
 template <class Kernel, class Noise>
-void sparse_gp<Kernel, Noise>::delete_bv(int loc)
+void sparse_gp_field<Kernel, Noise>::delete_bv(int loc)
 {
     //First swap loc to the last spot
     double alphastar = alpha(loc);
@@ -294,12 +263,11 @@ void sparse_gp<Kernel, Noise>::delete_bv(int loc)
     current_size--;
 }
 
-
 //Predict on a chunk of data.
 template <class Kernel, class Noise>
-void sparse_gp<Kernel, Noise>::predict_measurements(VectorXd& f_star, const MatrixXd& X_star, VectorXd& sigconf, bool conf)
+void sparse_gp_field<Kernel, Noise>::predict_measurements(VectorXd& f_star, const MatrixXd& X_star, VectorXd& sigconf, bool conf)
 {
-    //printf("sparse_gp::Predicting on %d points\n",in.Ncols());
+    //printf("sparse_gp_field::Predicting on %d points\n",in.Ncols());
     f_star.resize(X_star.rows());
     sigconf.resize(X_star.rows());
     for (int c = 0; c < X_star.rows(); c++) {
@@ -310,7 +278,7 @@ void sparse_gp<Kernel, Noise>::predict_measurements(VectorXd& f_star, const Matr
 //Predict the output and uncertainty for this input.
 // Make this work for several test inputs
 template <class Kernel, class Noise>
-double sparse_gp<Kernel, Noise>::predict(const VectorXd& X_star, double& sigma, bool conf)
+double sparse_gp_field<Kernel, Noise>::predict(const VectorXd& X_star, double& sigma, bool conf)
 {
     //double kstar = kernel_function(X_star, X_star);
     double kstar = kernel.kernel_function(X_star, X_star);
@@ -332,7 +300,7 @@ double sparse_gp<Kernel, Noise>::predict(const VectorXd& X_star, double& sigma, 
     }
 
     if (sigma < 0) { //Numerical instability?
-        printf("sparse_gp:: sigma (%lf) < 0!\n",sigma);
+        printf("sparse_gp_field:: sigma (%lf) < 0!\n",sigma);
         sigma = 0;
     }
 
@@ -350,36 +318,42 @@ double sparse_gp<Kernel, Noise>::predict(const VectorXd& X_star, double& sigma, 
     return f_star;
 }
 
-
 //Log probability of this data
 //Sigma should really be a matrix...
 //Should this use Q or -C?  Should prediction use which?
 template <class Kernel, class Noise>
-double sparse_gp<Kernel, Noise>::log_likelihood(const VectorXd& X, double y)
+double sparse_gp_field<Kernel, Noise>::log_prob(const VectorXd& X_star, const VectorXd& f_star)
 {
+    int dout = f_star.rows();
     static const double logsqrt2pi = 0.5f*log(2.0f*M_PI);
     double sigma;
-    double mu;
+    MatrixXd Sigma(dout, dout);
+    Sigma.setIdentity(); //For now
+    VectorXd mu(dout);
 
     //This is pretty much prediction
-    double kstar = kernel.kernel_function(X, X);
+    //double kstar = kernel_function(X_star, X_star);
+    double kstar = kernel.kernel_function(X_star, X_star);
     VectorXd k;
-    construct_covariance(k, X, BV);
+    construct_covariance(k, X_star, BV);
     if (current_size == 0) {
         sigma = kstar + s20;
-        mu = 0;
+        for (int i = 0; i < dout; i++) {
+            mu(i) = 0;
+        }
     }
     else {
-        mu = k.transpose()*alpha;//Page 33
+        mu = (k.transpose()*alpha).transpose();//Page 33
         sigma = s20 + kstar + k.transpose()*C*k;//Ibid..needs s2 from page 19
         //printf("Making sigma: %lf %lf %lf %lf\n",s20,kstar,k(1),C(1,1));
     }
-    double cent2 = (y - mu)*(y - mu);
+    Sigma *= sigma;
+    double cent2 = (f_star - mu).squaredNorm(); //SumSquare()?
 
     // in eigen, we have to use decomposition to get log determinant
-    long double log_det_cov = log(sigma);
+    long double log_det_cov = log(Sigma.determinant());
 
-    long double lp = -logsqrt2pi - 0.5f*log_det_cov - 0.5f*cent2/sigma;
+    long double lp = -double(dout)*logsqrt2pi - 0.5f*log_det_cov - 0.5f*cent2/sigma;
     //printf("\tCalculating log prob %Lf, Sigma = %lf, cent = %lf\n",lp,sigma,cent2);
     //if(C.Nrows()==1)
     //printf("\t\tC has one entry: %lf, k = %lf\n",C(1,1),k(1));
@@ -387,7 +361,7 @@ double sparse_gp<Kernel, Noise>::log_likelihood(const VectorXd& X, double y)
 }
 
 template <class Kernel, class Noise>
-void sparse_gp<Kernel, Noise>::compute_likelihoods(VectorXd& l, const MatrixXd& X, const VectorXd& y)
+void sparse_gp_field<Kernel, Noise>::compute_likelihoods(VectorXd& l, const MatrixXd& X, const VectorXd& y)
 {
     l.resize(X.rows());
     for (int i = 0; i < X.rows(); ++i) {
@@ -395,18 +369,9 @@ void sparse_gp<Kernel, Noise>::compute_likelihoods(VectorXd& l, const MatrixXd& 
     }
 }
 
-template <class Kernel, class Noise>
-void sparse_gp<Kernel, Noise>::compute_log_likelihoods(VectorXd& l, const MatrixXd& X, const VectorXd& y)
-{
-    l.resize(X.rows());
-    for (int i = 0; i < X.rows(); ++i) {
-        l(i) = log_likelihood(X.row(i).transpose(), y(i));
-    }
-}
-
 // likelihood, without log for derivatives
 template <class Kernel, class Noise>
-double sparse_gp<Kernel, Noise>::likelihood(const Vector2d& x, double y)
+double sparse_gp_field<Kernel, Noise>::likelihood(const Vector2d& x, double y)
 {
     //This is pretty much prediction
     //double kstar = kernel_function(x, x);
@@ -427,7 +392,7 @@ double sparse_gp<Kernel, Noise>::likelihood(const Vector2d& x, double y)
 }
 
 template <class Kernel, class Noise>
-void sparse_gp<Kernel, Noise>::compute_derivatives_fast(MatrixXd& dX, const MatrixXd& X, const VectorXd& y)
+void sparse_gp_field<Kernel, Noise>::compute_derivatives_fast(MatrixXd& dX, const MatrixXd& X, const VectorXd& y)
 {
     if (X.rows() == 0) {
         dX.resize(0, 3);
@@ -462,7 +427,7 @@ void sparse_gp<Kernel, Noise>::compute_derivatives_fast(MatrixXd& dX, const Matr
 }
 
 template <class Kernel, class Noise>
-void sparse_gp<Kernel, Noise>::compute_derivatives(MatrixXd& dX, const MatrixXd& X, const VectorXd& y)
+void sparse_gp_field<Kernel, Noise>::compute_derivatives(MatrixXd& dX, const MatrixXd& X, const VectorXd& y)
 {
     dX.resize(X.rows(), 3);
     Vector3d dx;
@@ -475,20 +440,16 @@ void sparse_gp<Kernel, Noise>::compute_derivatives(MatrixXd& dX, const MatrixXd&
 // THIS NEEDS SOME SPEEDUP, PROBABLY BY COMPUTING SEVERAL AT ONCE
 // the differential likelihood with respect to x and y
 template <class Kernel, class Noise>
-void sparse_gp<Kernel, Noise>::likelihood_dx(Vector3d& dx, const VectorXd& x, double y)
+void sparse_gp_field<Kernel, Noise>::likelihood_dx(Vector3d& dx, const Vector2d& x, double y)
 {
     VectorXd k;
-    double k_star = kernel.kernel_function(x, x);
     construct_covariance(k, x, BV);
     MatrixXd k_dx;
-    MatrixXd k_star_dx;
     //std::cout << "BV height " << BV.rows() << ", width " << BV.cols() << std::endl;
     //kernel_dx(k_dx, x);
     kernel.kernel_dx(k_dx, x, BV);
-    //MatrixXd temp = x;
-    kernel.kernel_dx(k_star_dx, x, x);
-    Array2d sigma_dx = 2.0f*k_dx.transpose()*C*k + k_star_dx.transpose(); // with or without k_star?
-    double sigma = s20 + k.transpose()*C*k + k_star;
+    Array2d sigma_dx = 2.0f*k_dx.transpose()*C*k;
+    double sigma = s20 + k.transpose()*C*k;
     double sqrtsigma = sqrt(sigma);
     double offset = y - k.transpose()*alpha;
     double exppart = 0.5f/(sigma*sqrtsigma)*exp(-0.5f/sigma * offset*offset);
@@ -508,7 +469,7 @@ void sparse_gp<Kernel, Noise>::likelihood_dx(Vector3d& dx, const VectorXd& x, do
 }
 
 template <class Kernel, class Noise>
-void sparse_gp<Kernel, Noise>::likelihood_dtheta(VectorXd& dtheta, const Vector2d& x, double y)
+void sparse_gp_field<Kernel, Noise>::likelihood_dtheta(VectorXd& dtheta, const Vector2d& x, double y)
 {
     dtheta.resize(kernel.param_size());
     VectorXd k;
@@ -520,7 +481,7 @@ void sparse_gp<Kernel, Noise>::likelihood_dtheta(VectorXd& dtheta, const Vector2
 
 // kernel function, to be separated out later
 template <class Kernel, class Noise>
-void sparse_gp<Kernel, Noise>::construct_covariance(VectorXd& K, const Vector2d& X, const MatrixXd& Xv)
+void sparse_gp_field<Kernel, Noise>::construct_covariance(VectorXd& K, const Vector2d& X, const MatrixXd& Xv)
 {
     K.resize(Xv.cols());
     for (int i = 0; i < Xv.cols(); ++i) {
@@ -529,49 +490,9 @@ void sparse_gp<Kernel, Noise>::construct_covariance(VectorXd& K, const Vector2d&
     }
 }
 
-// squared exponential coviariance, should use matern instead
-/*double sparse_gp::kernel_function(const Vector2d& xi, const Vector2d& xj)
-{
-    return sigmaf_sq*exp(-0.5f / l_sq * (xi - xj).squaredNorm());
-}*/
-
-// linear kernel
-/*double sparse_gp::kernel_function(const Vector2d& xi, const Vector2d& xj)
-{
-    return xi.transpose()*xj;
-}*/
-
-// polynomial kernel
-/*double sparse_gp::kernel_function(const Vector2d& xi, const Vector2d& xj)
-{
-  double d = xi.rows();
-  double resp = 1;
-  double inner = xi.transpose()*xj;
-  for (int i = 0; i < scales.Ncols(); i++) {
-      resp += pow(inner / (d*scales(i)), i);
-  }
-  return resp;
-}*/
-
-// rbf kernel
-/*double sparse_gp::kernel(const Vector2d& xi, const Vector2d& xj)
-{
-    int d = xi.rows();
-    if (d != widths.cols()) {//Expand if necessary
-        //printf("RBFKernel:  Resizing width to %d\n",(int)d);
-        double wtmp = widths(0);
-        widths.resize(d);
-        for (int i = 0; i < d; i++) {
-            widths(i) = wtmp;
-        }
-    }
-    //I think this bumps up against numerical stability issues.
-    return A*exp(-0.5f/d * (SP(a-b,widths.t())).squaredNorm());
-}*/
-
 // reset all parameters of gp so that it can be trained again
 template <class Kernel, class Noise>
-void sparse_gp<Kernel, Noise>::reset()
+void sparse_gp_field<Kernel, Noise>::reset()
 {
     total_count = 0;
     current_size = 0;
@@ -579,72 +500,4 @@ void sparse_gp<Kernel, Noise>::reset()
     C.resize(0, 0);
     Q.resize(0, 0);
     BV.resize(0, 0);
-}
-
-// train parameters of kernel using ???
-template <class Kernel, class Noise>
-void sparse_gp<Kernel, Noise>::train_parameters(const MatrixXd& X, const VectorXd& y)
-{
-    if (this->size() > 0) {
-        if (DEBUG) {
-            printf("Not training because process not empty.");
-        }
-        return;
-    }
-    int n = kernel.param_size();
-    VectorXd delta(n);
-    VectorXd deltai(n);
-    VectorXd l(X.rows());
-    VectorXd l_old(X.rows());
-    l.setZero();
-    l_old.setZero();
-    std::vector<double> ls;
-    std::vector<ArrayXXd> dKs;
-    dKs.resize(n);
-    double step = 1e-4f;
-    bool first = true;
-    do { // iterate until likelihood difference between runs is small
-        reset();
-        add_measurements(X, y);
-        if (first && BV.cols() < 20) { // DEBUG
-            return;
-        }
-        ArrayXXd dlPdK = -0.5f*(alpha*alpha.transpose() + C.transpose());
-        int counter = 0;
-        do { // iterate until derivative is small enough
-            /*kernel.dKdtheta(dKs, BV);
-            for (int i = 0; i < n; ++i) {
-                delta(i) = (dlPdK*dKs[i]).sum();
-            }*/
-            delta.setZero();
-            for (int i = 0; i < X.rows(); ++i) {
-                likelihood_dtheta(deltai, X.row(i).transpose(), y(i));
-                delta += deltai;
-            }
-            kernel.param()(0) += step*delta(0);
-            compute_log_likelihoods(l, X, y);
-            std::cout << "Delta norm: " << delta(0) << std::endl;
-            ls.push_back(l.sum());
-            std::cout << "L norm: " << l.norm() << std::endl;
-            std::cout << "P: " << kernel.param().transpose() << std::endl;
-            if (counter > 100) {
-                break;
-            }
-            ++counter;
-            first = false;
-        }
-        while (delta.norm() > 1e-2f);
-
-        octave_convenience oc;
-        oc.eval_plot_vector(ls);
-        exit(0);
-
-        l_old = l;
-        compute_likelihoods(l, X, y);
-        ls.push_back(l.norm());
-        std::cout << "L norm: " << (l - l_old).norm() << std::endl;
-    }
-    while ((l - l_old).norm() > 1e0f);
-    octave_convenience oc;
-    oc.eval_plot_vector(ls);
 }

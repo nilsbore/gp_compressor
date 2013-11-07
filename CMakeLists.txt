@@ -1,3 +1,5 @@
+project(gp_compressor)
+
 set(CMAKE_CXX_FLAGS "-O4 -g -fPIC -std=c++0x")
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
@@ -10,7 +12,7 @@ add_definitions(${PCL_DEFINITIONS})
 
 # MAIN LIBRARY
 add_library(pointcloud_compressor src/pointcloud_compressor.cpp)
-add_library(gp_compressor src/sparse_gp.h src/sparse_gp.hpp src/gp_compressor.cpp)
+add_library(gp_compressor src/sparse_gp.h src/sparse_gp.hpp src/sparse_gp_field.h src/sparse_gp_field.hpp src/gp_compressor.cpp)
 add_library(pointcloud_decompressor src/pointcloud_decompressor.cpp)
 add_library(orthogonal_matching_pursuit src/orthogonal_matching_pursuit.cpp)
 add_library(ksvd_decomposition src/ksvd_decomposition.cpp)
@@ -37,7 +39,7 @@ target_link_libraries(gp_octree gp_leaf ${PCL_LIBRARIES})
 target_link_libraries(dictionary_representation ${PCL_LIBRARIES})
 target_link_libraries(ksvd_decomposition orthogonal_matching_pursuit)
 target_link_libraries(asynch_visualizer ${PCL_LIBRARIES})
-target_link_libraries(gp_compressor rbf_kernel gaussian_noise probit_noise gp_octree gaussian_process ${PCL_LIBRARIES})
+target_link_libraries(gp_compressor octave_convenience rbf_kernel gaussian_noise probit_noise gp_octree gaussian_process ${PCL_LIBRARIES})
 target_link_libraries(gp_registration gp_compressor asynch_visualizer ${PCL_LIBRARIES})
 target_link_libraries(gp_mapping gp_registration ${PCL_LIBRARIES})
 target_link_libraries(pointcloud_compressor ksvd_decomposition dictionary_representation ${PCL_LIBRARIES})
