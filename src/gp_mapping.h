@@ -12,9 +12,9 @@ private:
     int min_nbr; // minimum number of points required to initialize a gp patch
     void insert_into_map();
     void transform_to_old(int i, const std::vector<int>& index_search,
-                          int* occupied_indices);
+                          int* occupied_indices, int* gp_indices);
     void transform_to_new(Eigen::Vector3d& center, const Eigen::Matrix3d& R, int i,
-                          const std::vector<int>& index_search, int* occupied_indices);
+                          const std::vector<int>& index_search, int* occupied_indices, int* gp_indices);
     void train_processes(); // could probably be replaced in old one instead
     void train_classification(int* gp_indices);
 public:

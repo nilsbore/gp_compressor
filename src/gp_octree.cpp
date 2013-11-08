@@ -100,7 +100,7 @@ int gp_octree::get_intersected_gps_recursive (
     }
 
     // decode leaf node into k_indices
-    leaf->getData (k_indices);
+    //leaf->getData (k_indices);
 
     return (1);
   }

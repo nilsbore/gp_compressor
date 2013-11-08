@@ -43,10 +43,10 @@ void sparse_gp_field<Kernel, Noise>::shuffle(std::vector<int>& ind, int n)
 
 //Add a chunk of data
 template <class Kernel, class Noise>
-void sparse_gp_field<Kernel, Noise>::add_measurements(const MatrixXd& X,const MatrixXd& Y)
+void sparse_gp_field<Kernel, Noise>::add_measurements(const MatrixXd& X, const MatrixXd& Y)
 {
     std::vector<int> ind;
-    shuffle(ind, Y.rows());
+    shuffle(ind, y.rows());
 
     for (int i = 0; i < X.rows(); i++) {
         add(X.row(ind[i]).transpose(), Y.row(ind[i]).transpose()); // row transpose
@@ -63,7 +63,6 @@ void sparse_gp_field<Kernel, Noise>::add(const VectorXd& X, const VectorXd& y)
     if (DEBUG) {
         printf("\t\tsparse_gp_field adding %dth point to sparse_gp_field (current_size = %d):",total_count,current_size);
     }
-    //double kstar = kernel_function(X, X);
     double kstar = kernel.kernel_function(X, X);
 
     if (current_size == 0){//First point is easy
@@ -87,23 +86,20 @@ void sparse_gp_field<Kernel, Noise>::add(const VectorXd& X, const VectorXd& y)
         // this could be done a lot faster if we had a cc_fast for BV
         construct_covariance(k, X, BV);
 
-        double m = alpha.transpose()*k;
+        VectorXd m = alpha.transpose()*k;
         double s2 = kstar + k.transpose()*C*k;
 
         if (s2 < 1e-12f) {//For numerical stability..from Csato's Matlab code?
             if (DEBUG) {
                 printf("s2 %lf ",s2);
             }
-            //s2 = 1e-12f; // this is where the nan comes from
         }
 
         //Update scalars
         //page 33 - Assumes Gaussian noise, no assumptions on kernel?
-        //double r = -1.0f / (s20 + s2);
         double r = noise.dx2_ln(y, m, s2); // -1.0f / (s20 + s2);
         //printf("out %d m %d r %f\n",out.Nrows(),m.Ncols(),r);
-        //double q = -r*(y - m);
-        double q = noise.dx_ln(y, m, s2); // -r*(y - m);
+        double q = noise.dx_ln(y, m, s2); // y and m now vectors, will have to be redone
 
         //projection onto current BV
         VectorXd e_hat = Q*k;//Appendix G, section c
@@ -178,7 +174,7 @@ void sparse_gp_field<Kernel, Noise>::add(const VectorXd& X, const VectorXd& y)
             //Find the minimum score
             for (int i = 0; i < current_size; i++) {
                 // Equation 3.26
-                score = alpha(i)*alpha(i)/(Q(i, i) + C(i, i)); // SumSquare()?
+                score = alpha.row(i).squaredNorm()/(Q(i, i) + C(i, i));
                 if (i == 0 || score < minscore) {
                     minscore = score;
                     minloc = i;
@@ -222,9 +218,9 @@ template <class Kernel, class Noise>
 void sparse_gp_field<Kernel, Noise>::delete_bv(int loc)
 {
     //First swap loc to the last spot
-    double alphastar = alpha(loc);
-    alpha(loc) = alpha(alpha.rows() - 1);
-    alpha.conservativeResize(alpha.rows() - 1);
+    RowVectorXd alphastar = alpha.row(loc);
+    alpha.row(loc) = alpha.row(alpha.rows() - 1);
+    alpha.conservativeResize(alpha.rows() - 1, alpha.cols());
 
     //Now C
     double cstar = C(loc, loc);
@@ -250,8 +246,10 @@ void sparse_gp_field<Kernel, Noise>::delete_bv(int loc)
     Q.conservativeResize(Q.rows() - 1, Q.cols() - 1);
 
     //Ok, now do the actual removal  Appendix G section g
-    //VectorXd qc = (Qstar + Cstar)/(qstar + cstar);
-    alpha -= alphastar/(qstar + cstar)*(Qstar + Cstar);
+    VectorXd qc = (qstar + cstar)*(Qstar + Cstar);
+    for (int i = 0; i < alpha.cols(); ++i) {
+        alpha.col(i) -= alphastar(i)*qc;
+    }
     C += (Qstar * Qstar.transpose()) / qstar -
             ((Qstar + Cstar)*(Qstar + Cstar).transpose()) / (qstar + cstar);
     Q -= (Qstar * Qstar.transpose()) / qstar;
@@ -263,31 +261,33 @@ void sparse_gp_field<Kernel, Noise>::delete_bv(int loc)
     current_size--;
 }
 
+
 //Predict on a chunk of data.
 template <class Kernel, class Noise>
-void sparse_gp_field<Kernel, Noise>::predict_measurements(VectorXd& f_star, const MatrixXd& X_star, VectorXd& sigconf, bool conf)
+void sparse_gp_field<Kernel, Noise>::predict_measurements(MatrixXd& f_star, const MatrixXd& X_star, VectorXd& sigconf, bool conf)
 {
     //printf("sparse_gp_field::Predicting on %d points\n",in.Ncols());
-    f_star.resize(X_star.rows());
+    f_star.resize(X_star.rows(), alpha.cols());
     sigconf.resize(X_star.rows());
+    VectorXd temp(alpha.cols());
     for (int c = 0; c < X_star.rows(); c++) {
-        f_star(c) = predict(X_star.row(c).transpose(), sigconf(c), conf); // row transpose
+        predict(temp, X_star.row(c).transpose(), sigconf(c), conf); // row transpose
+        f_star.row(c) = temp.transpose();
     }
 }
 
 //Predict the output and uncertainty for this input.
 // Make this work for several test inputs
 template <class Kernel, class Noise>
-double sparse_gp_field<Kernel, Noise>::predict(const VectorXd& X_star, double& sigma, bool conf)
+void sparse_gp_field<Kernel, Noise>::predict(VectorXd& f_star, const VectorXd& X_star, double& sigma, bool conf)
 {
-    //double kstar = kernel_function(X_star, X_star);
     double kstar = kernel.kernel_function(X_star, X_star);
     VectorXd k;
     construct_covariance(k, X_star, BV);
 
-    double f_star;
+    //f_star.resize(alpha.cols());
     if (current_size == 0) {
-        f_star = 0; // gaussian around 0
+        f_star.setZero(); // gaussian around 0
         sigma = kstar + s20;
         if (DEBUG) {
             printf("No training points added before prediction\n");
@@ -315,124 +315,46 @@ double sparse_gp_field<Kernel, Noise>::predict(const VectorXd& X_star, double& s
         sigma = sqrt(sigma);
     }
 
-    return f_star;
-}
-
-//Log probability of this data
-//Sigma should really be a matrix...
-//Should this use Q or -C?  Should prediction use which?
-template <class Kernel, class Noise>
-double sparse_gp_field<Kernel, Noise>::log_prob(const VectorXd& X_star, const VectorXd& f_star)
-{
-    int dout = f_star.rows();
-    static const double logsqrt2pi = 0.5f*log(2.0f*M_PI);
-    double sigma;
-    MatrixXd Sigma(dout, dout);
-    Sigma.setIdentity(); //For now
-    VectorXd mu(dout);
-
-    //This is pretty much prediction
-    //double kstar = kernel_function(X_star, X_star);
-    double kstar = kernel.kernel_function(X_star, X_star);
-    VectorXd k;
-    construct_covariance(k, X_star, BV);
-    if (current_size == 0) {
-        sigma = kstar + s20;
-        for (int i = 0; i < dout; i++) {
-            mu(i) = 0;
-        }
-    }
-    else {
-        mu = (k.transpose()*alpha).transpose();//Page 33
-        sigma = s20 + kstar + k.transpose()*C*k;//Ibid..needs s2 from page 19
-        //printf("Making sigma: %lf %lf %lf %lf\n",s20,kstar,k(1),C(1,1));
-    }
-    Sigma *= sigma;
-    double cent2 = (f_star - mu).squaredNorm(); //SumSquare()?
-
-    // in eigen, we have to use decomposition to get log determinant
-    long double log_det_cov = log(Sigma.determinant());
-
-    long double lp = -double(dout)*logsqrt2pi - 0.5f*log_det_cov - 0.5f*cent2/sigma;
-    //printf("\tCalculating log prob %Lf, Sigma = %lf, cent = %lf\n",lp,sigma,cent2);
-    //if(C.Nrows()==1)
-    //printf("\t\tC has one entry: %lf, k = %lf\n",C(1,1),k(1));
-    return lp;
 }
 
 template <class Kernel, class Noise>
-void sparse_gp_field<Kernel, Noise>::compute_likelihoods(VectorXd& l, const MatrixXd& X, const VectorXd& y)
+void sparse_gp_field<Kernel, Noise>::compute_likelihoods(VectorXd& l, const MatrixXd& X, const MatrixXd& Y)
 {
     l.resize(X.rows());
     for (int i = 0; i < X.rows(); ++i) {
-        l(i) = likelihood(X.row(i).transpose(), y(i));
+        l(i) = likelihood(X.row(i).transpose(), y.row(i).transpose());
     }
 }
 
 // likelihood, without log for derivatives
 template <class Kernel, class Noise>
-double sparse_gp_field<Kernel, Noise>::likelihood(const Vector2d& x, double y)
+double sparse_gp_field<Kernel, Noise>::likelihood(const Vector2d& x, const VectorXd& y)
 {
     //This is pretty much prediction
     //double kstar = kernel_function(x, x);
     double kstar = kernel.kernel_function(x, x);
     VectorXd k;
     construct_covariance(k, x, BV);
-    double mu;
+    VectorXd mu(y.rows());
     double sigma;
     if (current_size == 0) { // no measurements, only prior gaussian around 0
-        mu = 0.0f;
+        mu.setZero();
         sigma = kstar + s20; // maybe integrate this into likelihood_dx also
     }
     else {
-        mu = k.transpose()*alpha; //Page 33
+        mu = alpha.transpose()*k; //Page 33
         sigma = s20 + kstar + k.transpose()*C*k;//Ibid..needs s2 from page 19
     }
-    return 1.0f/sqrt(2.0f*M_PI*sigma)*exp(-0.5f/sigma*(y - mu)*(y - mu));
+    return 1.0f/sqrt(pow(2.0f*M_PI, double(y.rows()))*sigma)*exp(-0.5f/sigma*(y - mu)*(y - mu));
 }
 
 template <class Kernel, class Noise>
-void sparse_gp_field<Kernel, Noise>::compute_derivatives_fast(MatrixXd& dX, const MatrixXd& X, const VectorXd& y)
-{
-    if (X.rows() == 0) {
-        dX.resize(0, 3);
-        return;
-    }
-    MatrixXd K;
-    //construct_covariance_fast(K, X.transpose());
-    kernel.construct_covariance_fast(K, X.transpose(), BV);
-    ArrayXXd K_dx;
-    ArrayXXd K_dy;
-    //std::cout << "BV height " << BV.rows() << ", width " << BV.cols() << std::endl;
-    //kernels_fast(K_dx, K_dy, X.transpose());
-    kernel.kernels_fast(K_dx, K_dy, X.transpose(), BV);
-    ArrayXXd CK = C*K;
-    ArrayXd sigma_dx = 2.0f*(K_dx*CK).colwise().sum();
-    ArrayXd sigma_dy = 2.0f*(K_dy*CK).colwise().sum();
-    ArrayXd sigma = (K.array()*CK).colwise().sum() + s20;
-    ArrayXd sqrtsigma = sigma.sqrt();
-    ArrayXd offset = y - K.transpose()*alpha; // transpose?
-    ArrayXd sqoffset = offset*offset;
-    ArrayXd exppart = 0.5f*(-0.5f*sqoffset/sigma).exp()/(sigma*sqrtsigma);
-
-    //Array2d firstpart = -sigma_dx;
-    ArrayXd secondpart_dx = 2.0f*(K_dx.transpose().matrix()*alpha).array()*offset;
-    ArrayXd secondpart_dy = 2.0f*(K_dy.transpose().matrix()*alpha).array()*offset;
-    ArrayXd thirdpart_dx = sigma_dx/sigma * sqoffset;
-    ArrayXd thirdpart_dy = sigma_dy/sigma * sqoffset;
-    dX.resize(X.rows(), 3);
-    dX.col(0) = -1.0f*offset*exppart/(sigma*sqrtsigma);
-    dX.col(1) = exppart*(-sigma_dx + secondpart_dx + thirdpart_dx);
-    dX.col(2) = exppart*(-sigma_dy + secondpart_dy + thirdpart_dy);
-}
-
-template <class Kernel, class Noise>
-void sparse_gp_field<Kernel, Noise>::compute_derivatives(MatrixXd& dX, const MatrixXd& X, const VectorXd& y)
+void sparse_gp_field<Kernel, Noise>::compute_derivatives(MatrixXd& dX, const MatrixXd& X, const MatrixXd& Y)
 {
     dX.resize(X.rows(), 3);
     Vector3d dx;
     for (int i = 0; i < X.rows(); ++i) {
-        likelihood_dx(dx, X.row(i).transpose(), y(i));
+        likelihood_dx(dx, X.row(i).transpose(), Y.row(i).transpose());
         dX.row(i) = dx.transpose();
     }
 }
@@ -440,43 +362,31 @@ void sparse_gp_field<Kernel, Noise>::compute_derivatives(MatrixXd& dX, const Mat
 // THIS NEEDS SOME SPEEDUP, PROBABLY BY COMPUTING SEVERAL AT ONCE
 // the differential likelihood with respect to x and y
 template <class Kernel, class Noise>
-void sparse_gp_field<Kernel, Noise>::likelihood_dx(Vector3d& dx, const Vector2d& x, double y)
+void sparse_gp_field<Kernel, Noise>::likelihood_dx(Vector2d& dx, const VectorXd& x, const VectorXd& y)
 {
     VectorXd k;
+    double k_star = kernel.kernel_function(x, x);
     construct_covariance(k, x, BV);
     MatrixXd k_dx;
+    MatrixXd k_star_dx;
     //std::cout << "BV height " << BV.rows() << ", width " << BV.cols() << std::endl;
     //kernel_dx(k_dx, x);
     kernel.kernel_dx(k_dx, x, BV);
-    Array2d sigma_dx = 2.0f*k_dx.transpose()*C*k;
-    double sigma = s20 + k.transpose()*C*k;
+    //MatrixXd temp = x;
+    kernel.kernel_dx(k_star_dx, x, x);
+    Array2d sigma_dx = 2.0f*k_dx.transpose()*C*k + k_star_dx.transpose(); // with or without k_star?
+    double sigma = s20 + k.transpose()*C*k + k_star;
     double sqrtsigma = sqrt(sigma);
-    double offset = y - k.transpose()*alpha;
-    double exppart = 0.5f/(sigma*sqrtsigma)*exp(-0.5f/sigma * offset*offset);
+    VectorXd offset = y - k.transpose()*alpha;
+    double exppart = 0.5f/(sigma*sqrtsigma)*exp(-0.5f/sigma * offset.squaredNorm());
     Array2d firstpart = -sigma_dx;
-    Array2d secondpart = (2.0f*(k_dx.transpose()*alpha).array()*offset);// +
-    Array2d thirdpart = sigma_dx/sigma * offset*offset;
-    dx(0) = -1.0f/(sigma*sqrtsigma)*offset*exppart;
-    dx.tail<2>() = exppart*(firstpart + secondpart + thirdpart);
-    if (isnan(dx(0)) || isnan(dx(1)) || isnan(dx(2))) {
+    Array2d secondpart = 2.0f*k_dx.transpose()*alpha*offset;
+    Array2d thirdpart = sigma_dx/sigma * offset.squaredNorm();
+    dx = exppart*(firstpart + secondpart + thirdpart);
+    if (isnan(dx(0)) || isnan(dx(1))) {
         //breakpoint();
     }
 
-//    VectorXd k;
-//    construct_covariance(k, x, BV);
-//    dx(0) = k.transpose()*alpha - y;
-//    dx.tail<2>().setZero();
-}
-
-template <class Kernel, class Noise>
-void sparse_gp_field<Kernel, Noise>::likelihood_dtheta(VectorXd& dtheta, const Vector2d& x, double y)
-{
-    dtheta.resize(kernel.param_size());
-    VectorXd k;
-    construct_covariance(k, x, BV);
-    MatrixXd k_dtheta;
-    kernel.kernel_dtheta(k_dtheta, x, BV);
-    dtheta = (alpha.transpose()*k - y)*k_dtheta.transpose()*alpha;
 }
 
 // kernel function, to be separated out later
@@ -496,7 +406,7 @@ void sparse_gp_field<Kernel, Noise>::reset()
 {
     total_count = 0;
     current_size = 0;
-    alpha.resize(0); // just to empty memory
+    alpha.resize(0, 0); // just to empty memory
     C.resize(0, 0);
     Q.resize(0, 0);
     BV.resize(0, 0);

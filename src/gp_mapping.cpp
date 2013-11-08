@@ -44,7 +44,7 @@ void gp_mapping::insert_into_map()
     S.resize(n); // increase number of patches
     to_be_added.resize(n);
     W.conservativeResize(sz*sz, n);
-    //free.conservativeResize(sz*sz, n);
+    free.conservativeResize(sz*sz, n);
     rotations.resize(n);
     means.resize(n);
 
@@ -56,7 +56,10 @@ void gp_mapping::insert_into_map()
     Eigen::Matrix3d R;
     Vector3d mid;
     int* occupied_indices = new int[cloud->width*cloud->height](); // maybe save this for later? just one bool
-    //int gp_indices = new int[cloud->size()]; // can be used instead of occupied_indices
+    int* gp_indices = new int[cloud->size()]; // can be used instead of occupied_indices
+    for (int i = 0; i < cloud->size(); ++i) {
+        gp_indices[i] = -1;
+    }
 
     bool is_new;
     point center;
@@ -85,7 +88,7 @@ void gp_mapping::insert_into_map()
         }
         std::cout << "to_be_added.size(): " << to_be_added[leaf->gp_index].size() << std::endl;
         if (!is_new && gps[leaf->gp_index].size() > 0) {
-            transform_to_old(leaf->gp_index, index_search, occupied_indices); // here we can still transform them, doesn't matter if not enough
+            transform_to_old(leaf->gp_index, index_search, occupied_indices, gp_indices); // here we can still transform them, doesn't matter if not enough
             std::cout << "Added to old one" << std::endl;
             continue;
         }
@@ -102,7 +105,7 @@ void gp_mapping::insert_into_map()
         }
         compute_rotation(R, points);
         mid = center.getVector3fMap().cast<double>();
-        transform_to_new(mid, R, leaf->gp_index, index_search, occupied_indices);
+        transform_to_new(mid, R, leaf->gp_index, index_search, occupied_indices, gp_indices);
         std::cout << "Added new one" << std::endl;
         rotations[leaf->gp_index] = R;
         means[leaf->gp_index] = mid;
@@ -111,8 +114,8 @@ void gp_mapping::insert_into_map()
     delete[] occupied_indices;
 
     // do free space stuff
-    //train_classification(gp_indices);
-    //delete[] gp_indices;
+    train_classification(gp_indices);
+    delete[] gp_indices;
 
     train_processes();
 }
@@ -137,11 +140,23 @@ void gp_mapping::train_classification(int* gp_indices)
         if (intersected_indices.size() == 0) {
             continue;
         }
-        for (int j = 0; j < intersected_indices.size(); ++j) {
-            if (intersected_indices[j] == -1) {
+        bool reached_gp = false;
+        for (int j = intersected_indices.size() - 1; j >= 0; --j) {
+            if (intersected_indices[j] == -1 || gp_indices[i] == -1) {
                 continue;
             }
             m = intersected_indices[j];
+            if (gps[m].size() == 0) {
+                continue;
+            }
+            if (!reached_gp) {
+                if (m == gp_indices[i]) {
+                    reached_gp = true;
+                }
+                else {
+                    continue;
+                }
+            }
             R = rotations[m].toRotationMatrix();
             Vector3d normal = R.col(0);
             mid = means[m];
@@ -154,7 +169,7 @@ void gp_mapping::train_classification(int* gp_indices)
             x = int(double(sz)*(loc(1)/res+0.5f)); // transforming into image patch coordinates
             y = int(double(sz)*(loc(2)/res+0.5f));
             ind = sz*x + y;
-            if (j == intersected_indices.size() - 1) {
+            if (m == gp_indices[i]) {
                 free(ind, m) = false;
             }
             else {
@@ -165,7 +180,7 @@ void gp_mapping::train_classification(int* gp_indices)
 }
 
 void gp_mapping::transform_to_old(int i, const std::vector<int>& index_search,
-                                  int* occupied_indices)
+                                  int* occupied_indices, int* gp_indices)
 {
     ArrayXi count(sz*sz);
     count.setZero(); // not needed anymore, only need weights
@@ -184,6 +199,7 @@ void gp_mapping::transform_to_old(int i, const std::vector<int>& index_search,
             continue;
         }
         occupied_indices[index_search[m]] = 1;
+        gp_indices[index_search[m]] = i;
         x = int(double(sz)*(loc(1)/res+0.5f)); // transforming into image patch coordinates
         y = int(double(sz)*(loc(2)/res+0.5f));
         ind = sz*x + y;
@@ -197,7 +213,7 @@ void gp_mapping::transform_to_old(int i, const std::vector<int>& index_search,
 
 void gp_mapping::transform_to_new(Vector3d& center, const Matrix3d& R, int i,
                                   const std::vector<int>& index_search,
-                                  int* occupied_indices)
+                                  int* occupied_indices, int* gp_indices)
 {
     ArrayXi count(sz*sz);
     count.setZero(); // not needed anymore, only need weights
@@ -224,6 +240,7 @@ void gp_mapping::transform_to_new(Vector3d& center, const Matrix3d& R, int i,
         std::cout << m << std::endl;
         std::cout << last_inds << std::endl;*/
         occupied_indices[index_search[last_inds]] = 1;
+        gp_indices[index_search[last_inds]] = i;
         x = int(double(sz)*(loc(1)/res+0.5f)); // transforming into image patch coordinates
         y = int(double(sz)*(loc(2)/res+0.5f));
         ind = sz*x + y;
