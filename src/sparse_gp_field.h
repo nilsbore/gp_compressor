@@ -26,7 +26,7 @@ private:
     Eigen::MatrixXd BV; // The Basis Vectors, BV is 2xN
     void add(const Eigen::VectorXd& X, const Eigen::VectorXd& y);
     void delete_bv(int loc);
-    double predict(Eigen::VectorXd& f_star, const Eigen::VectorXd& X_star, double& sigma, bool conf);
+    void predict(Eigen::VectorXd& f_star, const Eigen::VectorXd& X_star, double& sigma, bool conf);
     void construct_covariance(Eigen::VectorXd& K, const Eigen::Vector2d& X, const Eigen::MatrixXd& Xv);
     void shuffle(std::vector<int>& ind, int n);
     void likelihood_dx(Eigen::Vector3d& dx, const Eigen::VectorXd& x, const Eigen::VectorXd& y);

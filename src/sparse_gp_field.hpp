@@ -46,7 +46,7 @@ template <class Kernel, class Noise>
 void sparse_gp_field<Kernel, Noise>::add_measurements(const MatrixXd& X, const MatrixXd& Y)
 {
     std::vector<int> ind;
-    shuffle(ind, y.rows());
+    shuffle(ind, Y.rows());
 
     for (int i = 0; i < X.rows(); i++) {
         add(X.row(ind[i]).transpose(), Y.row(ind[i]).transpose()); // row transpose
@@ -322,7 +322,7 @@ void sparse_gp_field<Kernel, Noise>::compute_likelihoods(VectorXd& l, const Matr
 {
     l.resize(X.rows());
     for (int i = 0; i < X.rows(); ++i) {
-        l(i) = likelihood(X.row(i).transpose(), y.row(i).transpose());
+        l(i) = likelihood(X.row(i).transpose(), Y.row(i).transpose());
     }
 }
 
@@ -362,7 +362,7 @@ void sparse_gp_field<Kernel, Noise>::compute_derivatives(MatrixXd& dX, const Mat
 // THIS NEEDS SOME SPEEDUP, PROBABLY BY COMPUTING SEVERAL AT ONCE
 // the differential likelihood with respect to x and y
 template <class Kernel, class Noise>
-void sparse_gp_field<Kernel, Noise>::likelihood_dx(Vector2d& dx, const VectorXd& x, const VectorXd& y)
+void sparse_gp_field<Kernel, Noise>::likelihood_dx(Vector3d& dx, const VectorXd& x, const VectorXd& y)
 {
     VectorXd k;
     double k_star = kernel.kernel_function(x, x);
@@ -382,7 +382,8 @@ void sparse_gp_field<Kernel, Noise>::likelihood_dx(Vector2d& dx, const VectorXd&
     Array2d firstpart = -sigma_dx;
     Array2d secondpart = 2.0f*k_dx.transpose()*alpha*offset;
     Array2d thirdpart = sigma_dx/sigma * offset.squaredNorm();
-    dx = exppart*(firstpart + secondpart + thirdpart);
+    dx(0) = 0;
+    dx.tail<2>() = exppart*(firstpart + secondpart + thirdpart);
     if (isnan(dx(0)) || isnan(dx(1))) {
         //breakpoint();
     }
