@@ -91,26 +91,27 @@ void gp_compressor::project_points(Vector3d& center, const Matrix3d& R, MatrixXd
         y = int(double(sz)*(pt(2)/res+0.5f));
         ind = sz*x + y;
         //double current_count = count(ind);
-        S[i].push_back(pt);
-        to_be_added[i].push_back(pt);
         c = colors.col(m); // TEST
         c_mn += c; // TEST
-        RGB[i].push_back(c); // TEST
+        S[i].push_back(point_pair(pt, c));
+        to_be_added[i].push_back(point_pair(pt, c));
+        //RGB[i].push_back(c); // TEST
         count(ind) += 1;
     }
     mn /= double(to_be_added[i].size()); // check that mn != 0
     c_mn /= double(to_be_added[i].size()); // TEST
-    for (Vector3d& p : to_be_added[i]) {
-        p(0) -= mn;
+    for (point_pair& p : to_be_added[i]) {
+        p.first(0) -= mn;
+        p.second -= c_mn;
         //std::cout << p(0) << " " << std::endl;
     }
-    for (Vector3d& p : S[i]) {
+    /*for (Vector3d& p : S[i]) {
         p(0) -= mn;
         //std::cout << p(0) << " " << std::endl;
     }
     for (Vector3d& cc : RGB[i]) { // TEST
         cc -= c_mn;
-    }
+    }*/
     RGB_means[i] = c_mn;
     center += mn*R.col(0); // should this be minus??
     W.col(i) = count > 0;
@@ -144,16 +145,17 @@ void gp_compressor::train_processes()
         y.resize(to_be_added[i].size());
         C.resize(to_be_added[i].size(), 3); // TEST
         int m = 0;
-        for (const Vector3d& p : to_be_added[i]) {
-            X.row(m) = p.tail<2>().transpose();
-            y(m) = p(0);
+        for (const point_pair& p : to_be_added[i]) {
+            X.row(m) = p.first.tail<2>().transpose();
+            C.row(m) = p.second.transpose();
+            y(m) = p.first(0);
             ++m;
         }
-        m = 0; // TEST
+        /*m = 0; // TEST
         for (const Vector3d& c : RGB[i]) { // TEST
             C.row(m) = c.transpose();
             ++m;
-        }
+        }*/
         //gps[i].train_parameters(X, y);
         gps[i].add_measurements(X, y);
         RGB_gps[i].add_measurements(X, C);
@@ -164,7 +166,7 @@ void gp_compressor::train_processes()
         added += 1;
         to_be_added[i].clear();
         S[i].clear(); // DEBUG FOR MAPPING!?
-        RGB[i].clear(); // TEST
+        //RGB[i].clear(); // TEST
     }
     std::cout << "Mean added: " << mean << std::endl;
     std::cout << "Max added: " << maxm << std::endl;
@@ -178,7 +180,7 @@ void gp_compressor::project_cloud()
     int n = octree.getLeafCount();
 
     S.resize(n);
-    RGB.resize(n); // TEST
+    //RGB.resize(n); // TEST
     to_be_added.resize(n);
     W.resize(sz*sz, n);
     //RGB.resize(sz*sz, 3*centers.size());

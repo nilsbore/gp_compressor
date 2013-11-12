@@ -20,6 +20,7 @@ public:
     typedef pcl::PointXYZRGB point;
     typedef pcl::PointCloud<point> pointcloud;
     typedef pcl::octree::OctreePointCloudSearch<point, gp_leaf>::OctreeT::LeafNodeIterator leaf_iterator;
+    typedef std::pair<Eigen::Vector3d, Eigen::Vector3d> point_pair;
 protected:
     int iteration; // TEMP, just for plotting parts added in latest iteration
     pointcloud::Ptr cloud; // the input pointcloud with RGB color information
@@ -39,11 +40,12 @@ protected:
     std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > RGB_means;
 
     // in the patch coordinate system, to be added this iteration
-    std::vector<std::list<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > > S;
+    std::vector<std::list<point_pair, Eigen::aligned_allocator<point_pair> > > S;
     // color values to be added
-    std::vector<std::list<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > > RGB; // TEST
+    //std::vector<std::list<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > > RGB; // TEST
     // in the global coordinate system, waiting to be added eventually
-    std::vector<std::list<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > > to_be_added;
+    //std::vector<std::list<std::Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > > to_be_added;
+    std::vector<std::list<point_pair, Eigen::aligned_allocator<point_pair> > > to_be_added;
 
     // same for RGB, first the R vectors then G and B
     //Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> RGB;

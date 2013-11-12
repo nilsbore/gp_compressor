@@ -42,11 +42,13 @@ void gp_mapping::insert_into_map()
     int i = to_be_added.size(); // first new leaf nbr
 
     S.resize(n); // increase number of patches
+    //RGB.resize(n);
     to_be_added.resize(n);
     W.conservativeResize(sz*sz, n);
     free.conservativeResize(sz*sz, n);
     rotations.resize(n);
     means.resize(n);
+    RGB_means.resize(n);
 
     // radius of the sphere encompassing the voxels
     double radius = sqrt(3.0f)/2.0f*res;
@@ -63,6 +65,8 @@ void gp_mapping::insert_into_map()
 
     bool is_new;
     point center;
+    point p;
+    Vector3d c;
     leaf_iterator iter(octree);
     while(*++iter) {
         pcl::octree::OctreeKey key = iter.getCurrentOctreeKey();
@@ -84,7 +88,14 @@ void gp_mapping::insert_into_map()
         octree.radiusSearch(center, radius, index_search, distances); // search octree
         std::cout << "index_search.size(): " << index_search.size() << std::endl;
         for (int m = 0; m < index_search.size(); ++m) {
-            to_be_added[leaf->gp_index].push_back(cloud->points[index_search[m]].getVector3fMap().cast<double>());
+            p = cloud->points[index_search[m]];
+            c(0) = p.r;
+            c(1) = p.g;
+            c(2) = p.b;
+            to_be_added[leaf->gp_index].push_back(
+                        point_pair(p.getVector3fMap().cast<double>(), c));
+
+            //RGB[leaf->gp_index].push_back(c);
         }
         std::cout << "to_be_added.size(): " << to_be_added[leaf->gp_index].size() << std::endl;
         if (!is_new && gps[leaf->gp_index].size() > 0) {
@@ -188,12 +199,12 @@ void gp_mapping::transform_to_old(int i, const std::vector<int>& index_search,
     int ind;
     int x, y;
     int m = 0;
-    for (const Vector3d& glob : to_be_added[i]) {
+    for (const point_pair& glob : to_be_added[i]) {
         if (occupied_indices[index_search[m]]) { // have start point of new indices?
             ++m;
             continue;
         }
-        loc = rotations[i].toRotationMatrix().transpose()*(glob - means[i]); // transforming to the patch coordinate system
+        loc = rotations[i].toRotationMatrix().transpose()*(glob.first - means[i]); // transforming to the patch coordinate system
         if (loc(1) > res/2.0f || loc(1) < -res/2.0f || loc(2) > res/2.0f || loc(2) < -res/2.0f) {
             ++m;
             continue;
@@ -203,7 +214,7 @@ void gp_mapping::transform_to_old(int i, const std::vector<int>& index_search,
         x = int(double(sz)*(loc(1)/res+0.5f)); // transforming into image patch coordinates
         y = int(double(sz)*(loc(2)/res+0.5f));
         ind = sz*x + y;
-        S[i].push_back(loc);
+        S[i].push_back(point_pair(loc, glob.second - RGB_means[i]));
         count(ind) += 1;
         ++m;
     }
@@ -218,40 +229,42 @@ void gp_mapping::transform_to_new(Vector3d& center, const Matrix3d& R, int i,
     ArrayXi count(sz*sz);
     count.setZero(); // not needed anymore, only need weights
     Vector3d loc;
+    Vector3d c;
     int ind;
     int x, y;
     double mn = 0;
+    Vector3d c_mn;
+    c_mn.setZero();
     int last_inds;
     int m = 0;
-    for (const Vector3d& glob : to_be_added[i]) {
+    for (const point_pair& glob : to_be_added[i]) {
         last_inds = index_search.size() - to_be_added[i].size() + m;
         if (last_inds < 0 || occupied_indices[index_search[last_inds]]) { // have start point of new indices?
             ++m;
             continue;
         }
-        loc = R.transpose()*(glob - center); // transforming to the patch coordinate system
+        loc = R.transpose()*(glob.first - center); // transforming to the patch coordinate system
         if (loc(1) > res/2.0f || loc(1) < -res/2.0f || loc(2) > res/2.0f || loc(2) < -res/2.0f) {
             ++m;
             continue;
         }
         mn += loc(0);
-        /*std::cout << index_search.size() << std::endl;
-        std::cout << to_be_added[i].size() << std::endl;
-        std::cout << m << std::endl;
-        std::cout << last_inds << std::endl;*/
         occupied_indices[index_search[last_inds]] = 1;
         gp_indices[index_search[last_inds]] = i;
         x = int(double(sz)*(loc(1)/res+0.5f)); // transforming into image patch coordinates
         y = int(double(sz)*(loc(2)/res+0.5f));
         ind = sz*x + y;
-        S[i].push_back(loc);
+        c_mn += glob.second;
+        S[i].push_back(point_pair(loc, glob.second));
         count(ind) += 1;
         ++m;
     }
     to_be_added[i].clear();
-    mn /= S[i].size(); // check that mn != 0
-    for (Vector3d& loc : S[i]) {
-        loc(0) -= mn;
+    mn /= double(S[i].size()); // check that mn != 0
+    c_mn /= double(S[i].size());
+    for (point_pair& loc : S[i]) {
+        loc.first(0) -= mn;
+        loc.second -= c_mn;
     }
     center += mn*R.col(0);
     W.col(i) = count > 0;
@@ -262,7 +275,9 @@ void gp_mapping::train_processes()
     std::cout << "Calling new train processes" << std::endl;
     MatrixXd X;
     VectorXd y;
+    MatrixXd C;
     gps.resize(octree.getLeafCount()); // new ones
+    RGB_gps.resize(octree.getLeafCount());
     int i;
     leaf_iterator iter(octree);
     while (*++iter) { // why iterate over leaves?
@@ -279,13 +294,28 @@ void gp_mapping::train_processes()
         }
         X.resize(S[i].size(), 2);
         y.resize(S[i].size());
+        /*if (S[i].size() != RGB[i].size()) {
+            std::cout << "S[i].size(): " << S[i].size() << std::endl;
+            std::cout << "RGB[i].size(): " << RGB[i].size() << std::endl;
+            std::cout << "S and RGB different size, stopping!" << std::endl;
+            exit(0);
+        }*/
+        C.resize(S[i].size(), 3);
         int m = 0;
-        for (const Vector3d& p : S[i]) {
-            X.row(m) = p.tail<2>().transpose().cast<double>();
-            y(m) = p(0);
+        for (const point_pair& p : S[i]) {
+            X.row(m) = p.first.tail<2>().transpose();
+            C.row(m) = p.second.transpose();
+            y(m) = p.first(0);
             ++m;
         }
+        /*m = 0;
+        for (const Vector3d& c : RGB[i]) {
+            C.row(m) = c.transpose();
+            ++m;
+        }*/
         gps[i].add_measurements(X, y);
+        RGB_gps[i].add_measurements(X, C);
         S[i].clear();
+        //RGB[i].clear();
     }
 }
