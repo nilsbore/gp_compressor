@@ -7,9 +7,11 @@
 #include <vector>
 #include <list>
 #include "sparse_gp.h"
+#include "sparse_gp_field.h"
 #include "gp_octree.h"
 #include "rbf_kernel.h"
 #include "gaussian_noise.h"
+#include "gaussian_noise_3d.h"
 #include "probit_noise.h"
 
 class gp_compressor
@@ -34,10 +36,12 @@ protected:
     // the 3D means of the patches
     std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > means;
     // the means in RGB color space
-    //std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > RGB_means;
+    std::vector<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > RGB_means;
 
     // in the patch coordinate system, to be added this iteration
     std::vector<std::list<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > > S;
+    // color values to be added
+    std::vector<std::list<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > > RGB; // TEST
     // in the global coordinate system, waiting to be added eventually
     std::vector<std::list<Eigen::Vector3d, Eigen::aligned_allocator<Eigen::Vector3d> > > to_be_added;
 
@@ -47,15 +51,14 @@ protected:
     Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> W;
     Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> free;
     std::vector<sparse_gp<rbf_kernel, gaussian_noise> > gps;
+    std::vector<sparse_gp_field<rbf_kernel, gaussian_noise_3d> > RGB_gps;
 
     void compute_rotation(Eigen::Matrix3d& R, const Eigen::MatrixXd& points);
     void project_points(Eigen::Vector3d& center, const Eigen::Matrix3d& R, Eigen::MatrixXd& points,
-                        const Eigen::Matrix<short, Eigen::Dynamic, Eigen::Dynamic>& colors,
-                        const std::vector<int>& index_search, int* occupied_indices, int i);
+                        const Eigen::MatrixXd& colors, const std::vector<int>& index_search, int* occupied_indices, int i);
     void project_cloud();
-    void compress_depths();
-    void compress_colors();
     void train_processes();
+    void flatten_colors(Eigen::Matrix<short, 3, 1>& rtn, const Eigen::Vector3d& x);
 public:
     gp_compressor(pointcloud::ConstPtr ncloud, double res = 0.1f, int sz = 10);
     void save_compressed(const std::string& name);

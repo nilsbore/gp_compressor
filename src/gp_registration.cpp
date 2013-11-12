@@ -9,10 +9,6 @@ gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
     gp_compressor(cloud, res, sz), delta(6, 1), delta_diff_small(false),
     step(1e-3f), vis(vis), P(6), max_steps(300) // 1e-2f for levenberg-marquard
 {
-    /*covariance.setZero();
-    mean1.setZero();
-    mean2.setZero();
-    accumulated_weight = 0;*/
     delta.setZero();
     project_cloud();
     std::cout << "Number of patches: " << S.size() << std::endl;
@@ -210,11 +206,6 @@ void gp_registration::compute_transformation()
             }
             vis->unlock();
         }
-
-        // get derivatives of points from gp
-        //add_derivatives(points.transpose().cast<double>(), dX);
-        //std::cout << "Number of points: " << points.cols() << std::endl;
-        //std::cout << "Index search: " << index_search.size() << std::endl;
     }
     octree.remove_just_points(); // not sure if this has any effect, removes points but not leaves
 
