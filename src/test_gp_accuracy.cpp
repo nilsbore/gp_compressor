@@ -153,6 +153,7 @@ int main(int argc, char** argv)
         std::vector<double> quat_norm;
         std::vector<double> t_norm;
         std::vector<double> likelihoods;
+        std::vector<double> color_likelihoods;
 
         comp.add_cloud(filtered_cloud);
         pthread_t my_viewer_thread;
@@ -169,6 +170,7 @@ int main(int argc, char** argv)
             quat_norm.push_back(quat.vec().norm());
             t_norm.push_back(t.norm());
             likelihoods.push_back(comp.get_likelihood());
+            color_likelihoods.push_back(comp.get_color_likelihood());
         } while (!comp.registration_done());
         pthread_join(my_viewer_thread, NULL);
 
@@ -176,6 +178,7 @@ int main(int argc, char** argv)
         oc.eval_plot_vector_pair(t_err, t_norm);
         oc.eval_plot_vector_pair(quat_err, quat_norm);
         oc.eval_plot_vector(likelihoods);
+        oc.eval_plot_vector(color_likelihoods);
 
         return 0;
     }

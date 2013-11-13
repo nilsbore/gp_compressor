@@ -1,6 +1,6 @@
 #include "gp_registration.h"
 
-#define COMPUTE_LIKELIHOOD 1
+#define COMPUTE_LIKELIHOOD 0
 
 using namespace Eigen;
 
@@ -134,6 +134,7 @@ void gp_registration::compute_transformation()
     //MatrixXd dX_temp;
 #ifdef COMPUTE_LIKELIHOOD
     VectorXd l;
+    VectorXd cl;
 #endif
     point center;
     int i;
@@ -177,8 +178,7 @@ void gp_registration::compute_transformation()
         std::cout << "dX2: " << dX.col(1).array().abs().sum() << std::endl;
         std::cout << "dX3: " << dX.col(2).array().abs().sum() << std::endl;
         std::cout << "dCX: " << dCX.array().abs().sum() << std::endl;
-        double alpha = 0.0f;
-        dX = alpha*dX + (1-alpha)*dCX;
+
         /*gps[i].compute_derivatives_fast(dX_temp, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
                                    points.row(0).transpose().cast<double>());
         double diff = (dX-dX_temp).array().abs().sum();MatrixXd dX;
@@ -189,6 +189,12 @@ void gp_registration::compute_transformation()
 #ifdef COMPUTE_LIKELIHOOD
         gps[i].compute_likelihoods(l, points.block(1, 0, 2, points.cols()).transpose(),
                                    points.row(0).transpose());
+        RGB_gps[i].compute_likelihoods(cl, points.block(1, 0, 2, points.cols()).transpose(),
+                                   colors);
+        dX = l.array().replicate(1, 3)*dCX.array() + cl.array().replicate(1, 3)*dX.array();
+#else
+        double alpha = 1.0f;
+        dX = alpha*dX + (1-alpha)*dCX;
 #endif
         // transform points and derivatives to global system
         R = rotations[i].toRotationMatrix();
@@ -201,6 +207,7 @@ void gp_registration::compute_transformation()
             //std::cout << dX.row(m)*J << std::endl;
 #ifdef COMPUTE_LIKELIHOOD
             ls = (added_derivatives/(added_derivatives+1.0f))*ls + 1.0f/(added_derivatives+1.0f)*l(m);
+            cls = (added_derivatives/(added_derivatives+1.0f))*cls + 1.0f/(added_derivatives+1.0f)*cl(m);
 #endif
             P = (added_derivatives/(added_derivatives+1.0f))*P + 1.0f/(added_derivatives+1.0f)*dX.row(m)*J;
             ++added_derivatives;
@@ -239,4 +246,9 @@ void gp_registration::compute_transformation()
 double gp_registration::get_likelihood()
 {
     return ls;
+}
+
+double gp_registration::get_color_likelihood()
+{
+    return cls;
 }

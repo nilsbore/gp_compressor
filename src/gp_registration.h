@@ -12,6 +12,7 @@ public:
     using gp_compressor::pointcloud;
 protected:
     double ls; // mean likelihood
+    double cls; // mean color likelihood
     Eigen::RowVectorXd P; // mean derivative with respect to point
     Eigen::VectorXd delta; // step direction
     bool delta_diff_small;
@@ -33,6 +34,7 @@ public:
     void registration_step();
     void get_cloud_transformation(Eigen::Matrix3d& R, Eigen::Vector3d& t);
     double get_likelihood();
+    double get_color_likelihood();
     gp_registration(pointcloud::ConstPtr cloud, double res = 0.1f, int sz = 10,
                     asynch_visualizer* vis = NULL);
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW

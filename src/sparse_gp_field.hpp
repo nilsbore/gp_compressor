@@ -347,7 +347,7 @@ double sparse_gp_field<Kernel, Noise>::likelihood(const Vector2d& x, const Vecto
         mu = alpha.transpose()*k; //Page 33
         sigma = s20 + kstar + k.transpose()*C*k;//Ibid..needs s2 from page 19
     }
-    return 1.0f/sqrt(pow(2.0f*M_PI, double(y.rows()))*sigma)*exp(-0.5f/sigma*(y - mu)*(y - mu));
+    return 1.0f/sqrt(pow(2.0f*M_PI, double(y.rows()))*sigma)*exp(-0.5f/sigma*(y - mu).squaredNorm());
 }
 
 template <class Kernel, class Noise>
