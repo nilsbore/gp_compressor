@@ -40,7 +40,7 @@ public:
     void compute_derivatives(Eigen::MatrixXd& dX, const Eigen::MatrixXd& X, const Eigen::MatrixXd& Y);
     void compute_likelihoods(Eigen::VectorXd& l, const Eigen::MatrixXd& X, const Eigen::MatrixXd& Y);
     //sparse_gp_field(int capacity = 30, double s0 = 1e-1f, double sigmaf = 1e-2f, double l = 0.08*0.08);
-    sparse_gp_field(int capacity = 100, double s0 = 1e-1f);
+    sparse_gp_field(int capacity = 100, double s0 = 1e2f);
 };
 
 #include "sparse_gp_field.hpp"

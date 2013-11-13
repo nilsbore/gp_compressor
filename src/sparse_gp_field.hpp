@@ -13,7 +13,7 @@ using namespace Eigen;
 template <class Kernel, class Noise>
 sparse_gp_field<Kernel, Noise>::sparse_gp_field(int capacity, double s0) :
     kernel(), noise(s0), capacity(capacity), s20(s0),
-    eps_tol(1e-6f), current_size(0), total_count(0) // 1e-6f
+    eps_tol(1e-4f), current_size(0), total_count(0) // 1e-6f
 {
 
 }
@@ -99,7 +99,8 @@ void sparse_gp_field<Kernel, Noise>::add(const VectorXd& X, const VectorXd& y)
         //page 33 - Assumes Gaussian noise, no assumptions on kernel?
         double r = noise.dx2_ln(y, m, s2); // -1.0f / (s20 + s2);
         //printf("out %d m %d r %f\n",out.Nrows(),m.Ncols(),r);
-        double q = noise.dx_ln(y, m, s2); // y and m now vectors, will have to be redone
+        RowVectorXd q;
+        noise.dx_ln(q, y, m, s2); // y and m now vectors, will have to be redone
 
         //projection onto current BV
         VectorXd e_hat = Q*k;//Appendix G, section c
@@ -137,10 +138,10 @@ void sparse_gp_field<Kernel, Noise>::add(const VectorXd& X, const VectorXd& y)
             s(s.rows() - 1) = 1.0f; // shouldn't this be e_hat instead?
 
             //Add a row to alpha
-            alpha.conservativeResize(alpha.rows() + 1);
-            alpha(alpha.rows() - 1) = 0;
+            alpha.conservativeResize(alpha.rows() + 1, alpha.cols());
+            alpha.row(alpha.rows() - 1).setZero();
             //Update alpha
-            alpha += q*s;//Equations 2.46
+            alpha += s*q;//Equations 2.46
 
             //Add Row and Column to C
             C.conservativeResize(C.rows() + 1, C.cols() + 1);
@@ -267,6 +268,7 @@ template <class Kernel, class Noise>
 void sparse_gp_field<Kernel, Noise>::predict_measurements(MatrixXd& f_star, const MatrixXd& X_star, VectorXd& sigconf, bool conf)
 {
     //printf("sparse_gp_field::Predicting on %d points\n",in.Ncols());
+    std::cout << "Alpha.cols: " << alpha.cols() << std::endl;
     f_star.resize(X_star.rows(), alpha.cols());
     sigconf.resize(X_star.rows());
     VectorXd temp(alpha.cols());
@@ -377,7 +379,7 @@ void sparse_gp_field<Kernel, Noise>::likelihood_dx(Vector3d& dx, const VectorXd&
     Array2d sigma_dx = 2.0f*k_dx.transpose()*C*k + k_star_dx.transpose(); // with or without k_star?
     double sigma = s20 + k.transpose()*C*k + k_star;
     double sqrtsigma = sqrt(sigma);
-    VectorXd offset = y - k.transpose()*alpha;
+    VectorXd offset = y - alpha.transpose()*k;
     double exppart = 0.5f/(sigma*sqrtsigma)*exp(-0.5f/sigma * offset.squaredNorm());
     Array2d firstpart = -sigma_dx;
     Array2d secondpart = 2.0f*k_dx.transpose()*alpha*offset;

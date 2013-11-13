@@ -7,7 +7,7 @@ using namespace Eigen;
 gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
                                  asynch_visualizer* vis) :
     gp_compressor(cloud, res, sz), delta(6, 1), delta_diff_small(false),
-    step(1e-3f), vis(vis), P(6), max_steps(300) // 1e-2f for levenberg-marquard
+    step(1e-1f), vis(vis), P(6), max_steps(300) // 1e-3f, 1e-2f for levenberg-marquard
 {
     delta.setZero();
     project_cloud();
@@ -66,7 +66,7 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
 
 bool gp_registration::registration_done()
 {
-    return step_nbr >= max_steps || (delta.head<3>().norm() < 0.1 && delta.tail<3>().norm() < 0.1);
+    return false;//step_nbr >= max_steps || (delta.head<3>().norm() < 0.1 && delta.tail<3>().norm() < 0.1);
     //return (delta.head<3>().norm() < 0.03 && delta.tail<3>().norm() < 0.03);
 }
 
@@ -130,6 +130,7 @@ void gp_registration::compute_transformation()
     Vector3d t;
     MatrixXd J(3, 6);
     MatrixXd dX;
+    MatrixXd dCX;
     //MatrixXd dX_temp;
 #ifdef COMPUTE_LIKELIHOOD
     VectorXd l;
@@ -157,25 +158,37 @@ void gp_registration::compute_transformation()
         octree.radiusSearch(center, radius, index_search, distances); // search in octree
         //leaf->reset(); // remove references in octree
         MatrixXd points(3, index_search.size());
+        MatrixXd colors(index_search.size(), 3);
         for (int m = 0; m < index_search.size(); ++m) {
             points(0, m) = cloud->points[index_search[m]].x;
             points(1, m) = cloud->points[index_search[m]].y;
             points(2, m) = cloud->points[index_search[m]].z;
+            colors(m, 0) = cloud->points[index_search[m]].r - RGB_means[i](0);
+            colors(m, 1) = cloud->points[index_search[m]].g - RGB_means[i](1);
+            colors(m, 2) = cloud->points[index_search[m]].b - RGB_means[i](2);
         }
 
         get_local_points(points, occupied_indices, index_search, i);
-        gps[i].compute_derivatives(dX, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
-                                   points.row(0).transpose().cast<double>());
+        gps[i].compute_derivatives(dX, points.block(1, 0, 2, points.cols()).transpose(),
+                                   points.row(0).transpose());
+        RGB_gps[i].compute_derivatives(dCX, points.block(1, 0, 2, points.cols()).transpose(),
+                                       colors);
+        std::cout << "dX1: " << dX.col(0).array().abs().sum() << std::endl;
+        std::cout << "dX2: " << dX.col(1).array().abs().sum() << std::endl;
+        std::cout << "dX3: " << dX.col(2).array().abs().sum() << std::endl;
+        std::cout << "dCX: " << dCX.array().abs().sum() << std::endl;
+        double alpha = 0.0f;
+        dX = alpha*dX + (1-alpha)*dCX;
         /*gps[i].compute_derivatives_fast(dX_temp, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
                                    points.row(0).transpose().cast<double>());
-        double diff = (dX-dX_temp).array().abs().sum();
+        double diff = (dX-dX_temp).array().abs().sum();MatrixXd dX;
         if (diff > 1e-6f) {
             std::cout << dX-dX_temp << std::endl;
             std::cout << "Didn't work, result: " << diff << std::endl;
         }*/
 #ifdef COMPUTE_LIKELIHOOD
-        gps[i].compute_likelihoods(l, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
-                                   points.row(0).transpose().cast<double>());
+        gps[i].compute_likelihoods(l, points.block(1, 0, 2, points.cols()).transpose(),
+                                   points.row(0).transpose());
 #endif
         // transform points and derivatives to global system
         R = rotations[i].toRotationMatrix();
