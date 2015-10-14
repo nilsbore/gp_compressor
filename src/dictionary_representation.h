@@ -2,6 +2,8 @@
 #define DICTIONARY_REPRESENTATION_H
 
 #include <pcl/point_types.h>
+#include <Eigen/StdVector>
+#include <Eigen/Geometry>
 #include <vector>
 #include <fstream>
 

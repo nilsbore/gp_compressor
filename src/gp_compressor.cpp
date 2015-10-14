@@ -129,7 +129,7 @@ void gp_compressor::train_processes()
     double added = 0;
     int maxm = 0;
     int i;
-    leaf_iterator iter(octree);
+    leaf_iterator iter(&octree);
     while (*++iter) {
         gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
         if (leaf == NULL) {
@@ -199,7 +199,7 @@ void gp_compressor::project_cloud()
 
     point center;
     int i = 0;
-    leaf_iterator iter(octree);
+    leaf_iterator iter(&octree);
     while(*++iter) {
         pcl::octree::OctreeKey key = iter.getCurrentOctreeKey();
         octree.generate_voxel_center(center, key);

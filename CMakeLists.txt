@@ -54,7 +54,7 @@ target_link_libraries(test_gp_accuracy gp_registration asynch_visualizer octave_
 target_link_libraries(test_decompress pointcloud_decompressor ${PCL_LIBRARIES})
 
 # NDT LIBRARY
-add_library(voxel_grid_covariance ndt/voxel_grid_covariance.cpp)
-add_executable(test_ndt_accuracy ndt/test_ndt_accuracy.cpp)
+#add_library(voxel_grid_covariance ndt/voxel_grid_covariance.cpp)
+#add_executable(test_ndt_accuracy ndt/test_ndt_accuracy.cpp)
 
-target_link_libraries(test_ndt_accuracy voxel_grid_covariance octave_convenience ${PCL_LIBRARIES})
+#target_link_libraries(test_ndt_accuracy voxel_grid_covariance octave_convenience ${PCL_LIBRARIES})

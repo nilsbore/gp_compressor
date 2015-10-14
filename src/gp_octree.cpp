@@ -52,7 +52,7 @@ void gp_octree::update_random_points(double percentage)
 
 void gp_octree::remove_just_points()
 {
-    leaf_iterator iter(*this);
+    leaf_iterator iter(this);
     gp_leaf* leaf;
     while(*++iter) {
         leaf = dynamic_cast<gp_leaf*>(*iter);
@@ -76,7 +76,7 @@ int gp_octree::get_intersected_gps (
   initIntersectedVoxel (origin, direction, minX, minY, minZ, maxX, maxY, maxZ, a);
 
   if (max (max (minX, minY), minZ) < min (min (maxX, maxY), maxZ))
-    return get_intersected_gps_recursive (minX, minY, minZ, maxX, maxY, maxZ, a, this->rootNode_, key,
+    return get_intersected_gps_recursive (minX, minY, minZ, maxX, maxY, maxZ, a, this->root_node_, key,
                                                 k_indices, maxVoxelCount);
   return (0);
 }

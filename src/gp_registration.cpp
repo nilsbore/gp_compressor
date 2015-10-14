@@ -142,7 +142,7 @@ void gp_registration::compute_transformation()
     ls = 0;
     added_derivatives = 0;
     int k = 0; // for normal plotting
-    leaf_iterator iter(octree);
+    leaf_iterator iter(&octree);
     while(*++iter) {
         pcl::octree::OctreeKey key = iter.getCurrentOctreeKey();
         octree.generate_voxel_center(center, key);

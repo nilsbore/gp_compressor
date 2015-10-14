@@ -67,7 +67,7 @@ void gp_mapping::insert_into_map()
     point center;
     point p;
     Vector3d c;
-    leaf_iterator iter(octree);
+    leaf_iterator iter(&octree);
     while(*++iter) {
         pcl::octree::OctreeKey key = iter.getCurrentOctreeKey();
         octree.generate_voxel_center(center, key);
@@ -279,7 +279,7 @@ void gp_mapping::train_processes()
     gps.resize(octree.getLeafCount()); // new ones
     RGB_gps.resize(octree.getLeafCount());
     int i;
-    leaf_iterator iter(octree);
+    leaf_iterator iter(&octree);
     while (*++iter) { // why iterate over leaves?
         gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
         if (leaf == NULL) {
