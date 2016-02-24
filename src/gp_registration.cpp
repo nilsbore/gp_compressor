@@ -10,7 +10,7 @@ gp_registration::gp_registration(pointcloud::ConstPtr cloud, double res, int sz,
     step(1e-1f), vis(vis), P(6), max_steps(300) // 1e-3f, 1e-2f for levenberg-marquard
 {
     delta.setZero();
-    project_cloud();
+    project_cloud(); // why are we doing this here?
     std::cout << "Number of patches: " << S.size() << std::endl;
     train_processes();
 }
@@ -66,7 +66,7 @@ void gp_registration::add_cloud(pointcloud::ConstPtr other_cloud)
 
 bool gp_registration::registration_done()
 {
-    return false;//step_nbr >= max_steps || (delta.head<3>().norm() < 0.1 && delta.tail<3>().norm() < 0.1);
+    return step_nbr > 10 && (step_nbr >= max_steps || (delta.head<3>().norm() < 0.1 && delta.tail<3>().norm() < 0.1));
     //return (delta.head<3>().norm() < 0.03 && delta.tail<3>().norm() < 0.03);
 }
 
@@ -147,12 +147,14 @@ void gp_registration::compute_transformation()
         pcl::octree::OctreeKey key = iter.getCurrentOctreeKey();
         octree.generate_voxel_center(center, key);
 
-        gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
+        //gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
+        gp_octree::LeafNode* leaf = dynamic_cast<gp_octree::LeafNode*>(*iter);
         if (leaf == NULL) {
-            std::cout << "doesn't work, exiting..." << std::endl;
+            std::cout << "transformation doesn't work, exiting..." << std::endl;
             exit(0);
         }
-        i = leaf->gp_index;
+        //i = leaf->gp_index;
+        i = leaf->getContainer().gp_index;
         if (i == -1 || gps[i].size() == 0) { // size check to be unnecessary, just initialize gps > 100 points in leaf
             continue;
         }
@@ -174,10 +176,10 @@ void gp_registration::compute_transformation()
                                    points.row(0).transpose());
         RGB_gps[i].compute_derivatives(dCX, points.block(1, 0, 2, points.cols()).transpose(),
                                        colors);
-        std::cout << "dX1: " << dX.col(0).array().abs().sum() << std::endl;
-        std::cout << "dX2: " << dX.col(1).array().abs().sum() << std::endl;
-        std::cout << "dX3: " << dX.col(2).array().abs().sum() << std::endl;
-        std::cout << "dCX: " << dCX.array().abs().sum() << std::endl;
+        //std::cout << "dX1: " << dX.col(0).array().abs().sum() << std::endl;
+        //std::cout << "dX2: " << dX.col(1).array().abs().sum() << std::endl;
+        //std::cout << "dX3: " << dX.col(2).array().abs().sum() << std::endl;
+        //std::cout << "dCX: " << dCX.array().abs().sum() << std::endl;
 
         /*gps[i].compute_derivatives_fast(dX_temp, points.block(1, 0, 2, points.cols()).transpose().cast<double>(),
                                    points.row(0).transpose().cast<double>());

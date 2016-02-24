@@ -53,10 +53,13 @@ void gp_octree::update_random_points(double percentage)
 void gp_octree::remove_just_points()
 {
     leaf_iterator iter(this);
-    gp_leaf* leaf;
+    //gp_leaf* leaf;
+    LeafNode* leaf;
     while(*++iter) {
-        leaf = dynamic_cast<gp_leaf*>(*iter);
-        leaf->reset();
+        //leaf = dynamic_cast<gp_leaf*>(*iter);
+        leaf = dynamic_cast<LeafNode*>(*iter);
+        //leaf->reset();
+        leaf->getContainer().reset();
     }
 }
 
@@ -91,12 +94,14 @@ int gp_octree::get_intersected_gps_recursive (
   // If leaf node, get voxel center and increment intersection count
   if (node->getNodeType () == pcl::octree::LEAF_NODE)
   {
-    const gp_leaf* leaf = dynamic_cast<const gp_leaf*> (node);
+    //const gp_leaf* leaf = dynamic_cast<const gp_leaf*> (node);
+    const LeafNode* leaf = dynamic_cast<const LeafNode*> (node);
     if (leaf == NULL) {
         k_indices.push_back(-1);
     }
     else {
-        k_indices.push_back(leaf->gp_index);
+        //k_indices.push_back(leaf->gp_index);
+        k_indices.push_back(leaf->getContainer().gp_index);
     }
 
     // decode leaf node into k_indices

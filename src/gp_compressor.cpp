@@ -131,12 +131,14 @@ void gp_compressor::train_processes()
     int i;
     leaf_iterator iter(&octree);
     while (*++iter) {
-        gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
+        //gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
+        gp_octree::LeafNode* leaf = dynamic_cast<gp_octree::LeafNode*>(*iter);
         if (leaf == NULL) {
-            std::cout << "doesn't work, exiting..." << std::endl;
+            std::cout << "compressor train doesn't work, exiting..." << std::endl;
             exit(0);
         }
-        i = leaf->gp_index;
+        //i = leaf->gp_index;
+        i = leaf->getContainer().gp_index;
         if (to_be_added[i].size() == 0) {
             S[i].clear(); // DEBUG FOR MAPPING!
             continue;
@@ -204,12 +206,16 @@ void gp_compressor::project_cloud()
         pcl::octree::OctreeKey key = iter.getCurrentOctreeKey();
         octree.generate_voxel_center(center, key);
 
-        gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
+        gp_octree::LeafNode* leaf = dynamic_cast<gp_octree::LeafNode*>(*iter);
+        //gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
         if (leaf == NULL) {
-            std::cout << "doesn't work, exiting..." << std::endl;
+            std::cout << "compressor project doesn't work, exiting..." << std::endl;
+            //++i;
+            //continue;
             exit(0);
         }
-        leaf->gp_index = i; // too early!
+        //leaf->gp_index = i; // too early!
+        leaf->getContainer().gp_index = i;
 
         octree.radiusSearch(center, radius, index_search, distances); // search octree
         //leaf->reset(); // remove references in octree
@@ -314,9 +320,9 @@ gp_compressor::pointcloud::Ptr gp_compressor::load_compressed()
         for (int y = 0; y < sz; ++y) { // ROOM FOR SPEEDUP
             for (int x = 0; x < sz; ++x) {
                 ind = x*sz + y;
-                if (!W(ind, i)) {
+                /*if (!W(ind, i)) {
                     continue;
-                }
+                }*/
                 X_star(points, 0) = res*((double(x) + 0.5f)/double(sz) - 0.5f);
                 X_star(points, 1) = res*((double(y) + 0.5f)/double(sz) - 0.5f);
                 ++points;

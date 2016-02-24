@@ -268,7 +268,7 @@ template <class Kernel, class Noise>
 void sparse_gp_field<Kernel, Noise>::predict_measurements(MatrixXd& f_star, const MatrixXd& X_star, VectorXd& sigconf, bool conf)
 {
     //printf("sparse_gp_field::Predicting on %d points\n",in.Ncols());
-    std::cout << "Alpha.cols: " << alpha.cols() << std::endl;
+    //std::cout << "Alpha.cols: " << alpha.cols() << std::endl;
     f_star.resize(X_star.rows(), alpha.cols());
     sigconf.resize(X_star.rows());
     VectorXd temp(alpha.cols());

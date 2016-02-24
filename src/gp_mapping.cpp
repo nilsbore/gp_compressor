@@ -39,6 +39,11 @@ void gp_mapping::insert_into_map()
     octree.update_points();
     int n = octree.getLeafCount();
 
+    if (n == 0) {
+        octree.remove_just_points();
+        return;
+    }
+
     int i = to_be_added.size(); // first new leaf nbr
 
     S.resize(n); // increase number of patches
@@ -72,14 +77,17 @@ void gp_mapping::insert_into_map()
         pcl::octree::OctreeKey key = iter.getCurrentOctreeKey();
         octree.generate_voxel_center(center, key);
 
-        gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
+        //gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
+        gp_octree::LeafNode* leaf = dynamic_cast<gp_octree::LeafNode*>(*iter);
         if (leaf == NULL) {
-            std::cout << "doesn't work, exiting..." << std::endl;
+            std::cout << "inserting doesn't work, exiting..." << std::endl;
             exit(0);
         }
-        is_new = (leaf->gp_index == -1);
+        //is_new = (leaf->gp_index == -1);
+        is_new = (leaf->getContainer().gp_index == -1);
         if (is_new) {
-            leaf->gp_index = i;
+            //leaf->gp_index = i;
+            leaf->getContainer().gp_index = i;
             std::cout << "new number" << std::endl;
             std::cout << "S[i].size: " << S[i].size() << std::endl;
             std::cout << "to_be_added[i].size: " << to_be_added[i].size() << std::endl;
@@ -92,21 +100,30 @@ void gp_mapping::insert_into_map()
             c(0) = p.r;
             c(1) = p.g;
             c(2) = p.b;
-            to_be_added[leaf->gp_index].push_back(
+            //to_be_added[leaf->gp_index].push_back(
+            //            point_pair(p.getVector3fMap().cast<double>(), c));
+            std::cout << "index: " << leaf->getContainer().gp_index << std::endl;
+            std::cout << "size: " << to_be_added.size() << std::endl;
+            to_be_added[leaf->getContainer().gp_index].push_back(
                         point_pair(p.getVector3fMap().cast<double>(), c));
 
             //RGB[leaf->gp_index].push_back(c);
         }
-        std::cout << "to_be_added.size(): " << to_be_added[leaf->gp_index].size() << std::endl;
-        if (!is_new && gps[leaf->gp_index].size() > 0) {
-            transform_to_old(leaf->gp_index, index_search, occupied_indices, gp_indices); // here we can still transform them, doesn't matter if not enough
+        //std::cout << "to_be_added.size(): " << to_be_added[leaf->gp_index].size() << std::endl;
+        std::cout << "to_be_added.size(): " << to_be_added[leaf->getContainer().gp_index].size() << std::endl;
+        //if (!is_new && gps[leaf->gp_index].size() > 0) {
+        if (!is_new && gps[leaf->getContainer().gp_index].size() > 0) {
+            //transform_to_old(leaf->gp_index, index_search, occupied_indices, gp_indices); // here we can still transform them, doesn't matter if not enough
+            transform_to_old(leaf->getContainer().gp_index, index_search, occupied_indices, gp_indices); // here we can still transform them, doesn't matter if not enough
             std::cout << "Added to old one" << std::endl;
             continue;
         }
-        if (!is_new && gps[leaf->gp_index].size() == 0) { // DEBUG
+        //if (!is_new && gps[leaf->gp_index].size() == 0) { // DEBUG
+        if (!is_new && gps[leaf->getContainer().gp_index].size() == 0) { // DEBUG
             //continue; // this adds more strange processes for some reason
         }
-        if (to_be_added[leaf->gp_index].size() < min_nbr) {
+        //if (to_be_added[leaf->gp_index].size() < min_nbr) {
+        if (to_be_added[leaf->getContainer().gp_index].size() < min_nbr) {
             continue;
         }
         MatrixXd points(4, index_search.size()); // 4 because of compute rotation
@@ -116,10 +133,13 @@ void gp_mapping::insert_into_map()
         }
         compute_rotation(R, points);
         mid = center.getVector3fMap().cast<double>();
-        transform_to_new(mid, R, leaf->gp_index, index_search, occupied_indices, gp_indices);
+        //transform_to_new(mid, R, leaf->gp_index, index_search, occupied_indices, gp_indices);
+        transform_to_new(mid, R, leaf->getContainer().gp_index, index_search, occupied_indices, gp_indices);
         std::cout << "Added new one" << std::endl;
-        rotations[leaf->gp_index] = R;
-        means[leaf->gp_index] = mid;
+        //rotations[leaf->gp_index] = R;
+        rotations[leaf->getContainer().gp_index] = R;
+        //means[leaf->gp_index] = mid;
+        means[leaf->getContainer().gp_index] = mid;
     }
     octree.remove_just_points();
     delete[] occupied_indices;
@@ -281,12 +301,14 @@ void gp_mapping::train_processes()
     int i;
     leaf_iterator iter(&octree);
     while (*++iter) { // why iterate over leaves?
-        gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
+        //gp_leaf* leaf = dynamic_cast<gp_leaf*>(*iter);
+        gp_octree::LeafNode* leaf = dynamic_cast<gp_octree::LeafNode*>(*iter);
         if (leaf == NULL) {
-            std::cout << "doesn't work, exiting..." << std::endl;
+            std::cout << "training doesn't work, exiting..." << std::endl;
             exit(0);
         }
-        i = leaf->gp_index;
+        //i = leaf->gp_index;
+        i = leaf->getContainer().gp_index;
         if (S[i].size() == 0) {
             std::cout << "Skipping for too few points" << std::endl;
             std::cout << "S[i].size(): " << S[i].size() << std::endl;
