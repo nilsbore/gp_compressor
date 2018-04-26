@@ -78,7 +78,7 @@ int gp_octree::get_intersected_gps (
 
   initIntersectedVoxel (origin, direction, minX, minY, minZ, maxX, maxY, maxZ, a);
 
-  if (max (max (minX, minY), minZ) < min (min (maxX, maxY), maxZ))
+  if (std::max (std::max (minX, minY), minZ) < std::min (std::min (maxX, maxY), maxZ))
     return get_intersected_gps_recursive (minX, minY, minZ, maxX, maxY, maxZ, a, this->root_node_, key,
                                                 k_indices, maxVoxelCount);
   return (0);

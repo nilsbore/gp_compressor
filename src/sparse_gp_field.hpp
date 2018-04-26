@@ -208,7 +208,7 @@ void sparse_gp_field<Kernel, Noise>::add(const VectorXd& X, const VectorXd& y)
         }
 
     }
-    if (isnan(C(0, 0))) {
+    if (std::isnan(C(0, 0))) {
         printf("sparse_gp_field::C has become Nan\n");
     }
 
@@ -382,11 +382,11 @@ void sparse_gp_field<Kernel, Noise>::likelihood_dx(Vector3d& dx, const VectorXd&
     VectorXd offset = y - alpha.transpose()*k;
     double exppart = 0.5f/(sigma*sqrtsigma)*exp(-0.5f/sigma * offset.squaredNorm());
     Array2d firstpart = -sigma_dx;
-    Array2d secondpart = 2.0f*k_dx.transpose()*alpha*offset;
+    Array2d secondpart = 2.0f*(k_dx.transpose()*alpha*offset).array();
     Array2d thirdpart = sigma_dx/sigma * offset.squaredNorm();
     dx(0) = 0;
     dx.tail<2>() = exppart*(firstpart + secondpart + thirdpart);
-    if (isnan(dx(0)) || isnan(dx(1))) {
+    if (std::isnan(dx(0)) || std::isnan(dx(1))) {
         //breakpoint();
     }
 

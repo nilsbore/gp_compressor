@@ -22,7 +22,7 @@ int orthogonal_matching_pursuit::max_abs_coeff(const ArrayXf& array)
     //std::cout << "rows: " << array.rows() << ", cols: " << array.cols() << std::endl;
     for (int m = 0; m < array.rows(); ++m) {
         val = array(m);
-        if (!isnan(val) && !isinf(val) && fabs(val) > max) {
+        if (!std::isnan(val) && !std::isinf(val) && fabs(val) > max) {
             ind = m;
             max = fabs(val);
         }
